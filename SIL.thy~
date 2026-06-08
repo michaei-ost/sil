@@ -4,7 +4,7 @@ section "SIL Logic"
 
 subsection "SIL Logic for Partial Correctness"
 
-theory SIL  imports Big_Step begin
+theory SIL imports Big_Step begin
 
 type_synonym assn = "state \<Rightarrow> bool"
 
@@ -31,14 +31,34 @@ Seq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>Q\<rangle>; 
 If: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
      \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<langle>Q\<rangle>"  |
 
+(*
 SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
+SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. \<exists>(b,c) \<in> set bs. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
+*)
+SelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
+
+While: "(\<And>n::nat. \<turnstile>
+  \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
+   c 
+  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)
+ \<Longrightarrow> \<turnstile> 
+  \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle>
+     WHILE b DO c
+ \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>" 
+|
+
+(*
 While: "\<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>P\<rangle> \<Longrightarrow>
         \<turnstile> \<langle>P\<rangle> WHILE b DO c \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle>"  |
+*)
 
 conseq: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q'\<rangle>"
+
 
 lemmas [simp] = SIL.Skip SIL.Assign SIL.Seq If
 
@@ -60,9 +80,9 @@ with arbitrary pre and postconditions.\<close>
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile> \<langle>P\<rangle> x ::= a \<langle>Q\<rangle>"
 by (simp add: strengthen_pre[OF _ Assign])
 
-lemma While':
-assumes "\<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>P\<rangle>" and "\<forall>s. P s \<and> \<not> bval b s \<longrightarrow> Q s"
-shows "\<turnstile> \<langle>P\<rangle> WHILE b DO c \<langle>Q\<rangle>"
-by(rule weaken_post[OF While[OF assms(1)] assms(2)])
+lemma While_fun:
+  "\<lbrakk>(\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)\<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle> WHILE b DO c \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>"
+  by (simp add: While)
 
 end

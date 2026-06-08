@@ -90,11 +90,14 @@ Similarly for the other commands:\<close>
 
 inductive_cases AssignE[elim!]: "(x ::= a,s) \<Rightarrow> t"
 thm AssignE
+inductive_cases AssignNDE[elim!]: "(x ::= ND vals, s) \<Rightarrow> t"
+thm AssignNDE
 inductive_cases SeqE[elim!]: "(c1;;c2,s1) \<Rightarrow> s3"
 thm SeqE
 inductive_cases IfE[elim!]: "(IF b THEN c1 ELSE c2,s) \<Rightarrow> t"
 thm IfE
-
+inductive_cases SelectNDE[elim!]: "(SELECT bs, s) \<Rightarrow> t"
+thm SelectNDE
 inductive_cases WhileE[elim]: "(WHILE b DO c,s) \<Rightarrow> t"
 thm WhileE
 text\<open>Only [elim]: [elim!] would not terminate.\<close>

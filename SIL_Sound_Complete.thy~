@@ -8,55 +8,8 @@ begin
 
 subsubsection "Soundness"
 
-lemma sil_sound_while:
-   "\<lbrakk>\<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c  \<langle>\<lambda>s. P s\<rangle>; \<forall>s. P s \<and> bval b s \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> P t)\<rbrakk>
-       \<Longrightarrow> \<forall>s. P s \<longrightarrow> (\<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> P t \<and> \<not> bval b t)"
 
-proof -
-  have "(WHILE b DO c,s) \<Rightarrow> t  \<Longrightarrow>  P s  \<Longrightarrow>  P t \<and> \<not> bval b t" for s t
-  proof(induction "WHILE b DO c" s t rule: big_step_induct)
-    case WhileFalse thus ?case by blast
-  next
-    case WhileTrue thus ?case sledgehammer
-      sorry
-  qed
-  thus ?thesis unfolding SIL_valid_def sorry
-qed
-
-lemma sil_sound_while_1:
-  assumes step:
-    "\<And>P b T c n::nat.
-       \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
-           c
-         \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>"
-  and decrease:
-    "\<And>P b T c n::nat.
-       \<forall>s. P s \<and> bval b s \<and> T s n  \<longrightarrow>
-       (\<exists>t. (c, s) \<Rightarrow> t \<and> P t \<and> (\<exists>n'<n. T t n'))"
-(*
-  and progress:
-   "\<And>P b T s c n::nat.
-     (P s \<and> bval b s \<and> T s n) \<Longrightarrow> n > 0"
-*)
-  shows
-    "\<And>P b T c.
-        \<forall>s. (P s \<and> (\<exists>n::nat. T s n)) \<longrightarrow>
-       (\<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> P t \<and> \<not> bval b t)"
-
-(*
-proof
-  have "(WHILE b DO c,s) \<Rightarrow> t  \<Longrightarrow>  P s \<and> (\<exists>n::nat. T s n)  \<Longrightarrow>  P t \<and> \<not> bval b t" for s t
-    proof(induction "WHILE b DO c" s t rule: big_step_induct)
-      case WhileFalse show ?case sledgehammer
-        by (simp add: WhileFalse.hyps WhileFalse.prems)
-    next
-      case WhileTrue thus ?case sledgehammer
-        using decrease by blast
-    qed
-qed (auto simp: SIL_valid_def)
-*) oops
-
-lemma sil_while_sound_2:
+lemma sil_while_sound:
  "(\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>) \<Longrightarrow>
   (\<And>n::nat. \<forall>s. P s \<and> bval b s \<and> T s n \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> P t \<and> (\<exists>n'<n. T t n'))) \<Longrightarrow>
   P s \<Longrightarrow> T s m \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> P t \<and> \<not> bval b t"
@@ -98,24 +51,32 @@ lemma sil_sound: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>  \<Longri
   apply (auto simp: SIL_valid_def)[1]
   unfolding SIL_valid_def apply blast
   unfolding SIL_valid_def apply blast
+  unfolding SIL_valid_def apply blast
   defer
   unfolding SIL_valid_def apply blast
   apply clarsimp
+by (rule sil_while_sound)
   
 
 subsubsection "Weakest Precondition"
 
 definition wp :: "com \<Rightarrow> assn \<Rightarrow> assn" where
-"wp c Q = (\<lambda>s. \<forall>t. (c,s) \<Rightarrow> t  \<longrightarrow>  Q t)"
+"wp c Q = (\<lambda>s. \<exists>t. (c,s) \<Rightarrow> t \<and>  Q t)"
 
 lemma wp_SKIP[simp]: "wp SKIP Q = Q"
 by (rule ext) (auto simp: wp_def)
 
 lemma wp_Ass[simp]: "wp (x::=a) Q = (\<lambda>s. Q(s[a/x]))"
-by (rule ext) (auto simp: wp_def)
+  unfolding wp_def
+by (auto simp: wp_def)
 
-lemma wp_AssND[simp]: "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. P(s[N v/x])))"
-by (rule ext) (auto simp: wp_def)
+lemma wp_AssND[simp]: "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
+  using wp_def
+by auto
+
+lemma wp_SelectND[simp]: "wp (SelectND S) Q = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c Q s))"
+  using wp_def
+by auto
 
 lemma wp_Seq[simp]: "wp (c\<^sub>1;;c\<^sub>2) Q = wp c\<^sub>1 (wp c\<^sub>2 Q)"
 by (rule ext) (auto simp: wp_def)
@@ -140,30 +101,54 @@ by(simp add: wp_While_If)
 
 subsubsection "Completeness"
 
-lemma wp_is_pre: "\<turnstile> {wp c Q} c {Q}"
-proof(induction c arbitrary: Q)
-  case If thus ?case by(auto intro: conseq)
-next
-  case (While b c)
-  let ?w = "WHILE b DO c"
-  show "\<turnstile> {wp ?w Q} ?w {Q}"
-  proof(rule While')
-    show "\<turnstile> {\<lambda>s. wp ?w Q s \<and> bval b s} c {wp ?w Q}"
-    proof(rule strengthen_pre[OF _ While.IH])
-      show "\<forall>s. wp ?w Q s \<and> bval b s \<longrightarrow> wp c (wp ?w Q) s" by auto
-    qed
-    show "\<forall>s. wp ?w Q s \<and> \<not> bval b s \<longrightarrow> Q s" by auto
-  qed
-qed auto
+lemma while_is_pre:
+  "\<And>b c Q. \<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
+ unfolding SIL_valid_def wp_def
+  apply (cases "(WHILE b DO c, s) \<Rightarrow> t")
+  defer
+  sorry
 
-lemma hoare_complete: assumes "\<Turnstile> {P}c{Q}" shows "\<turnstile> {P}c{Q}"
+lemma AssignND_is_pre: 
+"\<And>x1 x2 Q. \<turnstile> \<langle>wp (x1 ::= ND x2) Q\<rangle>
+          x1 ::= ND x2  \<langle>Q\<rangle>"
+  unfolding wp_def
+  by (metis AssignNDE SIL.AssignND aval.simps(1) big_step.AssignND)
+
+lemma SelectND_is_pre: 
+"\<And>x Q. \<turnstile> \<langle>wp (SELECT x) Q\<rangle>
+  SELECT x  \<langle>Q\<rangle>"
+  apply (simp add: wp_SelectND)
+  apply (simp split: prod.splits)
+  sledgehammer
+  unfolding wp_def
+  unfolding SIL_valid_def
+
+  sorry
+
+lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+  proof(induction c arbitrary: Q)
+    case If thus ?case by(auto intro: conseq)
+  next
+    case SKIP thus ?case by auto
+    case Assign thus ?case  by auto
+    case Seq thus ?case  by auto
+  next
+    case AssignND thus ?case by (rule AssignND_is_pre)
+    case SelectND thus ?case  using SelectND_is_pre by auto
+  next
+    case While thus ?case by (simp add: while_is_pre)
+  qed
+
+
+lemma sil_complete: assumes "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>" shows "\<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
 proof(rule strengthen_pre)
   show "\<forall>s. P s \<longrightarrow> wp c Q s" using assms
-    by (auto simp: hoare_valid_def wp_def)
-  show "\<turnstile> {wp c Q} c {Q}" by(rule wp_is_pre)
+    by (auto simp: SIL_valid_def wp_def)
+  show "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>" by(rule wp_is_pre)
 qed
 
-corollary hoare_sound_complete: "\<turnstile> {P}c{Q} \<longleftrightarrow> \<Turnstile> {P}c{Q}"
-by (metis hoare_complete hoare_sound)
+corollary sil_sound_complete: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
+  by (metis sil_sound sil_complete)
+
 
 end
