@@ -102,28 +102,120 @@ by(simp add: wp_While_If)
 subsubsection "Completeness"
 
 lemma while_is_pre:
-  "\<And>b c Q. \<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
- unfolding SIL_valid_def wp_def
-  apply (cases "(WHILE b DO c, s) \<Rightarrow> t")
+  "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
+  unfolding SIL_valid_def wp_def
+  apply(auto simp: SIL_valid_def)
+  apply (cases "bval b s")
   defer
+  apply(rule WhileFalse)
+ sledgehammer
   sorry
+
+
+(*
+ "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := v)))\<rangle> x::= ND vals \<langle>P\<rangle>"
+
+AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, s) \<Rightarrow> s(x := v)"
+*)
+
+lemma syntax_identical:
+    "\<exists>v \<in> vals. Q (s(x := v)) \<Longrightarrow> \<exists>t. (x ::= ND vals, s) \<Rightarrow> t \<and> Q t"
+  proof (erule bexE)
+    fix v
+    assume h1: "v \<in> vals"
+    assume h2: "Q (s(x := v))"
+  show "\<exists>t. (x ::= ND vals, s) \<Rightarrow> t \<and> Q t"
+  proof (rule exI[of _ "s(x := v)"])
+    show "(x ::= ND vals, s) \<Rightarrow> s(x := v) \<and> Q (s(x := v))"
+    by (simp add: AssignND h1 h2)
+  qed
+qed
+
+lemma syntax_identical_reverse:
+  "\<exists>t. (x ::= ND vals, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> \<exists>v \<in> vals. Q (s(x := v))"
+proof (erule exE)
+  fix t
+  assume h: "(x ::= ND vals, s) \<Rightarrow> t \<and> Q t"
+  from h have step: "(x ::= ND vals, s) \<Rightarrow> t" by (rule conjE)
+  from h have Qt: "Q t" by (rule conjE)
+  from step obtain v where "v \<in> vals" and "t = s(x := v)"
+    by (rule AssignNDE)
+  then show "\<exists>v \<in> vals. Q (s(x := v))"
+    using \<open>t = s(x := v)\<close> \<open>v \<in> vals\<close> h by auto
+qed
+
 
 lemma AssignND_is_pre: 
-"\<And>x1 x2 Q. \<turnstile> \<langle>wp (x1 ::= ND x2) Q\<rangle>
-          x1 ::= ND x2  \<langle>Q\<rangle>"
+"\<turnstile> \<langle>wp (x ::= ND vals) Q\<rangle>
+          x ::= ND vals  \<langle>Q\<rangle>"
   unfolding wp_def
-  by (metis AssignNDE SIL.AssignND aval.simps(1) big_step.AssignND)
+proof-
+  show "\<turnstile> \<langle>\<lambda>s. \<exists>t. (x ::= ND vals, s) \<Rightarrow> t \<and> Q t\<rangle> x ::= ND vals \<langle>Q\<rangle>"
+    using tAssignND wp_AssND wp_def by auto
+qed
+
+(*
+tSelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>"
+
+SelectND: "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Rightarrow> t \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Rightarrow> t"
+*)
+
+(*
+Have a Precondition: P = 
+"\<lambda>s. (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"
+
+Need to Prove that
+
+1. Pick a (b,c) from set bs
+2. Prove that P s \<rightarrow> bval b s
+3. Prove that \<langle>P\<rangle> c \<langle>Q\<rangle> is a valid triple.
+
+*)
+
+thm SelectNDE
+
+lemma "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>\<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>"
+  apply (rule tSelectND[where P = "\<lambda>s. (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"])
+
+lemma cor:
+"\<And>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> (\<And>b c. (b, c) \<in> set bs \<Longrightarrow> bval b s \<Longrightarrow> (c, s) \<Rightarrow> t \<Longrightarrow> Q t) \<Longrightarrow> Q t"
+  by blast
+
+lemma cor_1: "\<lbrakk>(b,c) \<in> set bs\<rbrakk> \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. bval b s \<and> (\<exists>t. (c,s) \<Rightarrow> t \<and> Q t)\<rangle> SELECT bs \<langle>Q\<rangle>"
+  sorry
+
+lemma strengthen_test:
+" \<turnstile> \<langle>\<lambda>s. bval b s \<and> ((c,s) \<Rightarrow> t \<and> Q t)\<rangle> SELECT bs \<langle>Q\<rangle> \<Longrightarrow>
+  \<turnstile> \<langle>\<lambda>s. (SELECT x, s) \<Rightarrow> t \<and>
+               Q t\<rangle>
+       SELECT x  \<langle>Q\<rangle>
+"
+  show "\<exists>t. (b, c) \<in> set bs \<Longrightarrow> (\<lambda>s. bval b s \<and> ((c,s) \<Rightarrow> t \<and> Q t) \<Longrightarrow> (SELECT bs, s) \<Rightarrow> t \<and>
+               Q t)"
+  sledgehammer
 
 lemma SelectND_is_pre: 
-"\<And>x Q. \<turnstile> \<langle>wp (SELECT x) Q\<rangle>
+"\<turnstile> \<langle>wp (SELECT x) Q\<rangle>
   SELECT x  \<langle>Q\<rangle>"
-  apply (simp add: wp_SelectND)
-  apply (simp split: prod.splits)
-  sledgehammer
   unfolding wp_def
-  unfolding SIL_valid_def
+proof-
+  assume h: "\<exists>t. (SELECT x, s) \<Rightarrow> t \<and> Q t"
+  from h obtain t where ht: "(SELECT x, s) \<Rightarrow> t" and Qt: "Q t" by blast
+  have "(\<And>b c. (b, c) \<in> set bs \<Longrightarrow> bval b s \<Longrightarrow> (c, s) \<Rightarrow> t \<Longrightarrow> Q t) \<Longrightarrow> Q t" 
+    using Qt by fastforce
+  have "(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> (\<And>b c. (b, c) \<in> set bs \<Longrightarrow> bval b s \<Longrightarrow> (c, s) \<Rightarrow> t \<Longrightarrow> Q t) \<Longrightarrow> Q t"
+    by argo 
+ have "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Rightarrow> t \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Rightarrow> t"
+   by auto
+  have "\<lbrakk>(b,c) \<in> set bs\<rbrakk> \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. bval b s \<and> ((c,s) \<Rightarrow> t \<and> Q t)\<rangle> SELECT bs \<langle>Q\<rangle>"
+    by (smt (verit, ccfv_SIG) conseq cor_1)
+  have "\<turnstile> \<langle>\<lambda>s. (SELECT x, s) \<Rightarrow> t \<and>
+               Q t\<rangle>
+       SELECT x  \<langle>Q\<rangle>"
+    sledgehammer
 
-  sorry
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)

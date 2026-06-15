@@ -177,13 +177,16 @@ thm SelectNDE
 
 lemma "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>\<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>"
+  by (simp add: tSelectND)
   apply (rule tSelectND[where P = "\<lambda>s. (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"])
+  oops
 
-lemma cor:
+lemma
 "\<And>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> (\<And>b c. (b, c) \<in> set bs \<Longrightarrow> bval b s \<Longrightarrow> (c, s) \<Rightarrow> t \<Longrightarrow> Q t) \<Longrightarrow> Q t"
   by blast
 
 lemma cor_1: "\<lbrakk>(b,c) \<in> set bs\<rbrakk> \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. bval b s \<and> (\<exists>t. (c,s) \<Rightarrow> t \<and> Q t)\<rangle> SELECT bs \<langle>Q\<rangle>"
+
   sorry
 
 lemma strengthen_test:
@@ -194,7 +197,23 @@ lemma strengthen_test:
 "
   show "\<exists>t. (b, c) \<in> set bs \<Longrightarrow> (\<lambda>s. bval b s \<and> ((c,s) \<Rightarrow> t \<and> Q t) \<Longrightarrow> (SELECT bs, s) \<Rightarrow> t \<and>
                Q t)"
-  sledgehammer
+    sledgehammer
+    oops
+
+lemma "\<turnstile> \<langle>wp (SELECT x) Q\<rangle>
+  SELECT x  \<langle>Q\<rangle>"
+  unfolding wp_def
+proof -
+  fix s t
+  assume pre: "\<exists>t. (SELECT x, s) \<Rightarrow> t \<and> Q t"
+  assume step: "(SELECT x, s) \<Rightarrow> t"
+  from pre obtain t' where ht': "(SELECT x, s) \<Rightarrow> t'" and Qt': "Q t'" by blast
+  from step obtain b c where 
+    hbc: "(b,c) \<in> set x" and
+    hb: "bval b s" and
+    hc: "(c,s) \<Rightarrow> t"
+    by (rule SelectNDE)
+  oops
 
 lemma SelectND_is_pre: 
 "\<turnstile> \<langle>wp (SELECT x) Q\<rangle>
@@ -214,7 +233,7 @@ proof-
   have "\<turnstile> \<langle>\<lambda>s. (SELECT x, s) \<Rightarrow> t \<and>
                Q t\<rangle>
        SELECT x  \<langle>Q\<rangle>"
-    sledgehammer
+    oops
 
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
@@ -226,7 +245,7 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
     case Seq thus ?case  by auto
   next
     case AssignND thus ?case by (rule AssignND_is_pre)
-    case SelectND thus ?case  using SelectND_is_pre by auto
+    case SelectND thus ?case using SelectND_is_pre by auto
   next
     case While thus ?case by (simp add: while_is_pre)
   qed
