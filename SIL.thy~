@@ -19,16 +19,16 @@ where "s[a/x] == s(x := aval a s)"
 inductive
   SIL :: "assn \<Rightarrow> com \<Rightarrow> assn \<Rightarrow> bool" (\<open>\<turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
 where
-Skip: "\<turnstile> \<langle>P\<rangle> SKIP \<langle>P\<rangle>"  |
+tSkip: "\<turnstile> \<langle>P\<rangle> SKIP \<langle>P\<rangle>"  |
 
-Assign:  "\<turnstile> \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<langle>P\<rangle>"  |
+tAssign:  "\<turnstile> \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<langle>P\<rangle>"  |
 
-AssignND:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s[N v/x]))\<rangle> x::= ND vals \<langle>P\<rangle>"  |
+tAssignND:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := v)))\<rangle> x::= ND vals \<langle>P\<rangle>"  |
 
-Seq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
+tSeq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
       \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>R\<rangle>"  |
 
-If: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
+tIf: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
      \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<langle>Q\<rangle>"  |
 
 (*
@@ -38,10 +38,10 @@ SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda
 SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. \<exists>(b,c) \<in> set bs. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 *)
-SelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+tSelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
-While: "(\<And>n::nat. \<turnstile>
+tWhile: "(\<And>n::nat. \<turnstile>
   \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
    c 
   \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)
@@ -60,9 +60,9 @@ conseq: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langl
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q'\<rangle>"
 
 
-lemmas [simp] = SIL.Skip SIL.Assign SIL.Seq If
+lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeq tIf
 
-lemmas [intro!] = SIL.Skip SIL.Assign SIL.Seq SIL.If
+lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeq SIL.tIf
 
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q\<rangle>"
@@ -78,11 +78,11 @@ goal would have to match this form exactly. Therefore we derive two variants
 with arbitrary pre and postconditions.\<close>
 
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile> \<langle>P\<rangle> x ::= a \<langle>Q\<rangle>"
-by (simp add: strengthen_pre[OF _ Assign])
+by (simp add: strengthen_pre[OF _ tAssign])
 
 lemma While_fun:
   "\<lbrakk>(\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)\<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle> WHILE b DO c \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>"
-  by (simp add: While)
+  by (simp add: tWhile)
 
 end

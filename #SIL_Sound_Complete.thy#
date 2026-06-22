@@ -103,7 +103,7 @@ subsubsection "Completeness"
 
 thm WhileE 
 
-definition while_pre where "while_pre \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c,
+definition while_inv where "while_inv \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c,
                 s) \<Rightarrow>
                t \<and>
                Q t"
@@ -232,3 +232,24 @@ corollary sil_sound_complete: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rang
 
 
 end
+(*
+Table of Contents
+- Abstract
+- Introduction Section - Explaining utility of this work. 
+- Literature Review 
+  - Hoare Logic
+  - Predicate Transformers
+  - "Finding Attackers by means of Predicate Transformers"
+  - IL
+  - SIL
+  - Predicate Transformers in SIL
+- Introduction to IL and SIL, comparison of the logics
+  - Providing toy example to demonstrate where IL fails, and potentially if SIL could fail (unsure)
+  - Showing use case of SIL predicate transformers
+- Modification of SIL (e.g. "Error States")
+- Defining Predicate Transformers for SIL with some proofs.
+- Applying Predicate Transformers to determine possibility of attacks on small example systems
+  - Applying predicate transformers to toy examples
+- Applying Predicate Transformers to Large Scale Systems
+- Conclusion
+*)

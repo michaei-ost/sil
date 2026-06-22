@@ -41,7 +41,8 @@ SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda
 tSelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 *)
-tSelectND: "\<lbrakk> \<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s);  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+
+tSelectND: "\<lbrakk> \<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and>  (\<exists>t. (c,s) \<Rightarrow> t \<and> Q t))\<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
 tWhile: "(\<And>n::nat. \<turnstile>
