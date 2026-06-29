@@ -37,8 +37,15 @@ SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda
 
 SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. \<exists>(b,c) \<in> set bs. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
-*)
+
 tSelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
+
+
+tSelectND: "\<lbrakk> \<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and>  (\<exists>t. (c,s) \<Rightarrow> t \<and> Q t))\<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
+*)
+tSelectND: "\<lbrakk>\<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle>)\<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
 tWhile: "(\<And>n::nat. \<turnstile>
@@ -66,7 +73,7 @@ lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeq SIL.tIf
 
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q\<rangle>"
-by (blast intro: conseq)
+  by (blast intro: conseq)
 
 lemma weaken_post:
   "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile> \<langle>P\<rangle> c \<langle>Q'\<rangle>"

@@ -8,6 +8,16 @@ begin
 
 subsubsection "Soundness"
 
+lemma sil_while_sound_2:
+"(\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>Q n\<rangle>) \<Longrightarrow>
+ (\<And>n. \<forall>s. Q (Suc n) s \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> Q n t)) \<Longrightarrow>
+ (\<And>s. Q 0 s \<Longrightarrow> \<not> bval b s) \<Longrightarrow>
+ (\<And>n s. Q (Suc n) s \<Longrightarrow>  bval b s) \<Longrightarrow>
+ Q n s \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> Q 0 t"
+  apply (induct n arbitrary: s rule: Nat.nat_less_induct)
+  apply clarsimp
+  by (metis WhileFalse WhileTrue less_eq_Suc_le nat.collapse order_refl)
+  
 
 lemma sil_while_sound:
  "(\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>) \<Longrightarrow>
@@ -55,7 +65,7 @@ lemma sil_sound: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>  \<Longri
   defer
   unfolding SIL_valid_def apply blast
   apply clarsimp
-by (rule sil_while_sound)
+by (rule sil_while_sound_2)
   
 
 subsubsection "Weakest Precondition"
@@ -103,7 +113,7 @@ subsubsection "Completeness"
 
 thm WhileE 
 
-definition while_pre where "while_pre \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c,
+definition while_inv where "while_inv \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c,
                 s) \<Rightarrow>
                t \<and>
                Q t"
@@ -187,22 +197,92 @@ thm SelectNDE
 definition select_pre where
 "select_pre \<equiv> \<lambda>s Q bs. (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"
 
+
+thm SelectNDE 
+
+lemma "
+(b, c) \<in> set bs \<Longrightarrow>
+\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t \<and> bval b s \<Longrightarrow>
+\<exists>t. (c, s) \<Rightarrow> t \<and> Q t
+"
+proof-
+  assume bc: "(b,c) \<in> set bs"
+  assume sel: "\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t"
+  have h0: "\<exists>t. ((SELECT bs, s) \<Rightarrow> t \<and> Q t) \<Longrightarrow> \<exists>b c t. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t"
+    by auto
+  have h1: "\<exists>b c t. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t"
+    using sel h0 by fastforce
+  obtain b c t where
+     bc: "(b,c) \<in> set bs"
+     and guard: "bval b s"
+     and exec: "(c,s) \<Rightarrow> t"
+     and post: "Q t"
+  using h1 by blast
+  have h2: "(c, s) \<Rightarrow> t \<and> Q t"
+    using post exec by fastforce
+
+  have h2: "\<exists>t.(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> \<exists>t. (c, s) \<Rightarrow> t \<and> Q t"
+    by (metis h2)
+oops
+
+
+lemma select_rule:
+  assumes bc: "(b,c) \<in> set bs \<and> bval b s \<and> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>\<lambda>s. select_pre s Q bs \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
+  
+  unfolding wp_def
+  unfolding select_pre_def
+proof-
+  from bc obtain b c
+    where bc': "(b,c) \<in> set bs"
+    and bv: "bval b s"
+    and h: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+    by auto
+
+  have h0: "\<turnstile> \<langle>\<lambda>s. \<exists>t. bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t\<rangle> c \<langle>Q\<rangle>"
+    by (smt (verit, ccfv_SIG) conseq h wp_def)
+  have h1: "(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> \<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t"
+    by auto
+  have h2: "(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow>  bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t" sledgehammer
+  have h2: "\<turnstile> \<langle>\<lambda>s. \<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t\<rangle> c  \<langle>Q\<rangle>"
+    oops
+
+lemma "
+(\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)
+\<longrightarrow> (\<exists>b c. (b, c) \<in> set bs \<and> \<turnstile> \<langle>\<lambda>s. select_pre s Q bs \<and> bval b s\<rangle> c \<langle>Q\<rangle>)
+"
+  unfolding wp_def
+  unfolding select_pre_def
+  sorry
+
+lemma "
+\<forall>s.
+  (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t \<and> bval b s)
+  \<longrightarrow>
+  (\<exists>t. (c, s) \<Rightarrow> t \<and> Q t)"
+
+
+
+
 lemma SelectND_is_pre:
  " ((b,c) \<in> set bs \<Longrightarrow>
      \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>) \<Longrightarrow>
   \<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+  unfolding wp_def
 proof -
-  assume bc: "((b,c) \<in> set bs \<Longrightarrow>
-     \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>)"
+  assume bc: "(b,c) \<in> set bs"
+  assume wpc: "\<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>"
   have h0: "\<forall>s. (\<exists>t. (SELECT bs,s) \<Rightarrow> t) \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s)"  by blast
   have h1: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"
     by (simp add: select_pre_def)
   have h2: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>t. (SELECT bs, s) \<Rightarrow> t)"
     by (metis h1)
-  have h3: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>b c t. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t)"
-    using h1 by blast
+  have h3: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s)"
+    using h0 h2 by auto
+  have h4: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and>  \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)"
+    by (metis wpc bc)
+
   show "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
-    by (metis SelectNDE tSelectND wp_def)
 qed
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
@@ -214,7 +294,7 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
     case Seq thus ?case  by auto
   next
     case AssignND thus ?case by (rule AssignND_is_pre)
-    case SelectND thus ?case by (meson AssignND_is_pre SelectND_is_pre)
+    case SelectND thus ?case apply - by (meson AssignND_is_pre SelectND_is_pre)
   next
     case While thus ?case apply - by (simp add: while_is_pre)
   qed
@@ -232,3 +312,24 @@ corollary sil_sound_complete: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rang
 
 
 end
+(*
+Table of Contents
+- Abstract
+- Introduction Section - Explaining utility of this work. 
+- Literature Review 
+  - Hoare Logic
+  - Predicate Transformers
+  - "Finding Attackers by means of Predicate Transformers"
+  - IL
+  - SIL
+  - Predicate Transformers in SIL
+- Introduction to IL and SIL, comparison of the logics
+  - Providing toy example to demonstrate where IL fails, and potentially if SIL could fail (unsure)
+  - Showing use case of SIL predicate transformers
+- Modification of SIL (e.g. "Error States")
+- Defining Predicate Transformers for SIL with some proofs.
+- Applying Predicate Transformers to determine possibility of attacks on small example systems
+  - Applying predicate transformers to toy examples
+- Applying Predicate Transformers to Large Scale Systems
+- Conclusion
+*)

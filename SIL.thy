@@ -38,11 +38,36 @@ SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda
 SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. \<exists>(b,c) \<in> set bs. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
-tSelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+
+tSelectND: "\<lbrakk> \<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and>  (\<exists>t. (c,s) \<Rightarrow> t \<and> Q t))\<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 *)
-tSelectND: "\<lbrakk> \<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s);  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
+tSelectND: "\<lbrakk>\<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle>)\<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
+
+(*
+tSelectND: "\<lbrakk>
+    \<forall>s. P s \<longrightarrow> (\<exists>(b,c) \<in> set bs. bval b s);
+
+    \<exists>(b,c) \<in> set bs.
+      \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle>
+  \<rbrakk>
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
+*)
+
+tWhile: "\<lbrakk>(\<And>n::nat. \<turnstile>
+  \<langle>\<lambda>s. Q (Suc n) s\<rangle>
+   c 
+  \<langle>\<lambda>s. Q n s\<rangle>)
+; \<And>s. Q 0 s \<Longrightarrow> \<not> bval b s
+; \<And>n s. Q (Suc n) s \<Longrightarrow> bval b s \<rbrakk>
+ \<Longrightarrow> \<turnstile> 
+  \<langle>\<lambda>s. \<exists>n. Q n s\<rangle>
+     WHILE b DO c
+ \<langle>\<lambda>s. Q 0 s\<rangle>" 
+|
+
+(*
 
 tWhile: "(\<And>n::nat. \<turnstile>
   \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
@@ -54,7 +79,7 @@ tWhile: "(\<And>n::nat. \<turnstile>
  \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>" 
 |
 
-(*
+
 While: "\<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>P\<rangle> \<Longrightarrow>
         \<turnstile> \<langle>P\<rangle> WHILE b DO c \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle>"  |
 *)
@@ -82,10 +107,5 @@ with arbitrary pre and postconditions.\<close>
 
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile> \<langle>P\<rangle> x ::= a \<langle>Q\<rangle>"
 by (simp add: strengthen_pre[OF _ tAssign])
-
-lemma While_fun:
-  "\<lbrakk>(\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)\<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle> WHILE b DO c \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>"
-  by (simp add: tWhile)
 
 end

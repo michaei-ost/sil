@@ -23,10 +23,10 @@ IfFalse: "\<lbrakk> \<not>bval b s;  (c\<^sub>2,s) \<Rightarrow> t \<rbrakk> \<L
 SelectND: "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Rightarrow> t \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Rightarrow> t" |
 WhileFalse: "\<not>bval b s \<Longrightarrow> (WHILE b DO c,s) \<Rightarrow> s" |
 WhileTrue:
-"\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Rightarrow> s\<^sub>2;  (WHILE b DO c, s\<^sub>2) \<Rightarrow> s\<^sub>3 \<rbrakk> 
+"\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Rightarrow> s\<^sub>2;  (WHILE b DO c, s\<^sub>2) \<Rightarrow> s\<^sub>3 \<rbrakk>  
 \<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Rightarrow> s\<^sub>3"
 print_theorems
-
+ 
 text_raw\<open>}%endsnip\<close>
 
 text_raw\<open>\snip{BigStepEx}{1}{2}{%\<close>

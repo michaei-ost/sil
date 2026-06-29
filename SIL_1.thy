@@ -4,7 +4,7 @@ section "SIL Logic"
 
 subsection "SIL Logic for Partial Correctness"
 
-theory SIL  imports Big_Step begin
+theory SIL imports Big_Step begin
 
 type_synonym assn = "state \<Rightarrow> bool"
 
