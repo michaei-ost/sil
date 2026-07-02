@@ -10,7 +10,7 @@ type_synonym assn = "state \<Rightarrow> bool"
 
 definition
 SIL_valid :: "assn \<Rightarrow> com \<Rightarrow> assn \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50) where
-"\<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<equiv> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> Q t))"
+"\<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<equiv> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c, s) \<Down> t \<and> Q t))"
 
 abbreviation state_subst :: "state \<Rightarrow> aexp \<Rightarrow> vname \<Rightarrow> state"
   (\<open>_[_'/_]\<close> [1000,0,0] 999)
@@ -51,10 +51,8 @@ tSelectND: "\<lbrakk>\<forall>s. P s \<longrightarrow> (
 
 tSelectND: "
 \<lbrakk>
-  \<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow>
-  (\<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>);
-  \<forall>s. P s \<longrightarrow> (\<exists>b c.(b, c) \<in> set bs 
-  \<and> (R b c) s \<and> bval b s)
+  \<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> (\<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>);
+  \<forall>s. P s \<longrightarrow> (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)
 \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
