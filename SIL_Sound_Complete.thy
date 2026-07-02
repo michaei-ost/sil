@@ -9,377 +9,155 @@ begin
 subsubsection "Soundness"
 
 lemma sil_while_sound_2:
-"(\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>Q n\<rangle>) \<Longrightarrow>
- (\<And>n. \<forall>s. Q (Suc n) s \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> Q n t)) \<Longrightarrow>
- (\<And>s. Q 0 s \<Longrightarrow> \<not> bval b s) \<Longrightarrow>
- (\<And>n s. Q (Suc n) s \<Longrightarrow>  bval b s) \<Longrightarrow>
- Q n s \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> Q 0 t"
-  apply (induct n arbitrary: s rule: Nat.nat_less_induct)
-  apply clarsimp
-  by (metis WhileFalse WhileTrue less_eq_Suc_le nat.collapse order_refl)
-  
+  assumes "\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>Q n\<rangle>"
+      and "\<And>n. \<forall>s. Q (Suc n) s \<longrightarrow> (\<exists>t. (c, s) \<Down> t \<and> Q n t)"
+      and "\<And>s. Q 0 s \<Longrightarrow> \<not> bval b s"
+      and "\<And>n s. Q (Suc n) s \<Longrightarrow>  bval b s"
+      and "Q n s"
+    shows "\<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q 0 t"
+  using assms
+  apply (induct n arbitrary: s rule: Nat.nat_less_induct, clarsimp)
+  by (metis WhileFalse WhileTrue lessI not0_implies_Suc)
+
 
 lemma sil_while_sound:
- "(\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>) \<Longrightarrow>
-  (\<And>n::nat. \<forall>s. P s \<and> bval b s \<and> T s n \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> P t \<and> (\<exists>n'<n. T t n'))) \<Longrightarrow>
-  P s \<Longrightarrow> T s m \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> P t \<and> \<not> bval b t"
-  thm Nat.nat_less_induct
+  assumes "\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>"
+      and "\<And>n::nat. \<forall>s. P s \<and> bval b s \<and> T s n \<longrightarrow> (\<exists>t. (c, s) \<Down> t \<and> P t \<and> (\<exists>n'<n. T t n'))"
+      and "P s"
+      and "T s m"
+    shows "\<exists>t. (WHILE b DO c, s) \<Down> t \<and> P t \<and> \<not> bval b t"
+  using assms
   apply (induct m arbitrary: s rule: Nat.nat_less_induct)
-  apply clarsimp
-  apply (cases "bval b s")
-   defer
-   apply blast
-proof-
-  {
-  fix n s
-  assume IH: "\<forall>m<n. \<forall>s. P s \<longrightarrow>  T s m \<longrightarrow> (\<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> P t \<and> \<not> bval b t)"
-  and body_triple:  "\<And>n. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>"
-  and body_consq: "\<And>n. \<forall>s. P s \<and> bval b s \<and> T s n \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> P t \<and> (\<exists>n'<n. T t n'))"
-  and P: "P s"
-  and T: "T s n" 
-  and guard: "bval b s"
-  have "\<exists>t. (c, s) \<Rightarrow> t \<and> P t \<and> (\<exists>n'<n. T t n')"
-    using P T body_consq guard by blast
-  then obtain s_1 m where body_works: "(c, s) \<Rightarrow> s_1 \<and> P s_1 \<and> (m<n \<and> T s_1 m)" by blast
-  then obtain s_2 where "(WHILE b DO c, s_1) \<Rightarrow> s_2 \<and> P s_2 \<and> \<not> bval b s_2" using IH  by blast
-  then have "\<exists>t. (WHILE b DO c, s) \<Rightarrow> t \<and> P t \<and> \<not> bval b t"
-    using body_works guard by blast
-  } then show "\<And>n sa.
-       \<lbrakk>\<forall>m<n. \<forall>x. P x \<longrightarrow> T x m \<longrightarrow> (\<exists>t. (WHILE b DO c, x) \<Rightarrow> t \<and> P t \<and> \<not> bval b t);
-        \<And>n. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>;
-        \<And>n. \<forall>s. P s \<and> bval b s \<and> T s n \<longrightarrow> (\<exists>t. (c, s) \<Rightarrow> t \<and> P t \<and> (\<exists>n'<n. T t n')); P sa; T sa n; bval b s\<rbrakk>
-       \<Longrightarrow> \<exists>t. (WHILE b DO c, sa) \<Rightarrow> t \<and> P t \<and> \<not> bval b t"
-    by blast
-qed
+  by blast
 
 
+lemma sil_sound: 
+  "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
+  unfolding SIL_valid_def
+  apply (induction rule: SIL.induct; blast?)
+  using sil_while_sound_2 by blast
 
-lemma sil_sound: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
-  apply (induction rule: SIL.induct)
-  apply (auto simp: SIL_valid_def)[1]
-  apply (auto simp: SIL_valid_def)[1]
-  apply (auto simp: SIL_valid_def)[1]
-  unfolding SIL_valid_def apply blast
-  unfolding SIL_valid_def apply blast
-  unfolding SIL_valid_def apply blast
-  defer
-  unfolding SIL_valid_def apply blast
-  apply clarsimp
-by (rule sil_while_sound_2)
-  
 
 subsubsection "Weakest Precondition"
 
 definition wp :: "com \<Rightarrow> assn \<Rightarrow> assn" where
-"wp c Q = (\<lambda>s. \<exists>t. (c,s) \<Rightarrow> t \<and>  Q t)"
+  "wp c Q = (\<lambda>s. \<exists>t. (c,s) \<Down> t \<and>  Q t)"
 
-lemma wp_SKIP[simp]: "wp SKIP Q = Q"
-by (rule ext) (auto simp: wp_def)
+lemma wp_SKIP [simp]: 
+  "wp SKIP Q = Q"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_Ass[simp]: "wp (x::=a) Q = (\<lambda>s. Q(s[a/x]))"
-  unfolding wp_def
-by (auto simp: wp_def)
+lemma wp_Ass [simp]: 
+  "wp (x::=a) Q = (\<lambda>s. Q(s[a/x]))"
+  by (fastforce simp: wp_def)
 
-lemma wp_AssND[simp]: "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
-  using wp_def
-by auto
+lemma wp_AssND [simp]: 
+  "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
+  by (fastforce simp: wp_def)
 
-lemma wp_SelectND[simp]: "wp (SelectND S) Q = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c Q s))"
-  using wp_def
-by auto
+lemma wp_SelectND[simp]: 
+  "wp (SelectND S) Q = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c Q s))"
+  by (fastforce simp: wp_def)
 
-lemma wp_Seq[simp]: "wp (c\<^sub>1;;c\<^sub>2) Q = wp c\<^sub>1 (wp c\<^sub>2 Q)"
-by (rule ext) (auto simp: wp_def)
+lemma wp_Seq[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) Q = wp c\<^sub>1 (wp c\<^sub>2 Q)"
+  by (rule ext) (fastforce simp: wp_def)
 
 lemma wp_If[simp]:
- "wp (IF b THEN c\<^sub>1 ELSE c\<^sub>2) Q =
- (\<lambda>s. if bval b s then wp c\<^sub>1 Q s else wp c\<^sub>2 Q s)"
-by (rule ext) (auto simp: wp_def)
+ "wp (IF b THEN c\<^sub>1 ELSE c\<^sub>2) Q = (\<lambda>s. if bval b s then wp c\<^sub>1 Q s else wp c\<^sub>2 Q s)"
+  by (rule ext) (auto simp: wp_def)
 
 lemma wp_While_If:
- "wp (WHILE b DO c) Q s =
-  wp (IF b THEN c;;WHILE b DO c ELSE SKIP) Q s"
-unfolding wp_def by (metis unfold_while)
+ "wp (WHILE b DO c) Q s = wp (IF b THEN c;;WHILE b DO c ELSE SKIP) Q s"
+  unfolding wp_def by blast
 
-lemma wp_While_True[simp]: "bval b s \<Longrightarrow>
-  wp (WHILE b DO c) Q s = wp (c;; WHILE b DO c) Q s"
-by(simp add: wp_While_If)
+lemma wp_While_True[simp]: 
+  "bval b s \<Longrightarrow> wp (WHILE b DO c) Q s = wp (c;; WHILE b DO c) Q s"
+  by(fastforce simp: wp_While_If)
 
-lemma wp_While_False[simp]: "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) Q s = Q s"
-by(simp add: wp_While_If)
+lemma wp_While_False[simp]: 
+  "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) Q s = Q s"
+  by(fastforce simp: wp_While_If)
 
 
 subsubsection "Completeness"
 
-thm WhileE 
+definition while_inv where
+  "while_inv \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q t"
 
-definition while_inv where "while_inv \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c,
-                s) \<Rightarrow>
-               t \<and>
-               Q t"
-lemma while_is_pre:
+lemma While_is_pre:
   "(\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>) \<Longrightarrow> \<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
   unfolding wp_def  
-proof-
-  fix s
-  assume "\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>"
-  oops
+  sorry
 
-(*
-
-tWhile: "(\<And>n::nat. \<turnstile>
-  \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
-   c 
-  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)
- \<Longrightarrow> \<turnstile> 
-  \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle>
-     WHILE b DO c
- \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>" 
-|
-
-
-WhileFalse: "\<not>bval b s \<Longrightarrow> (WHILE b DO c,s) \<Rightarrow> s" |
-
-WhileTrue:
-"\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Rightarrow> s\<^sub>2;  (WHILE b DO c, s\<^sub>2) \<Rightarrow> s\<^sub>3 \<rbrakk> 
-\<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Rightarrow> s\<^sub>3"
-
-tWhile: "(\<And>n::nat. \<turnstile>
-  \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
-   c 
-  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)
- \<Longrightarrow> \<turnstile> 
-  \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle>
-     WHILE b DO c
- \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>" 
-|
-
-lemma strengthen_pre:
-  "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q\<rangle>"
-by (blast intro: conseq)
-
-lemma weaken_post:
-  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile> \<langle>P\<rangle> c \<langle>Q'\<rangle>"
-by (blast intro: conseq)
-*)
 
 lemma AssignND_is_pre: 
-"\<turnstile> \<langle>wp (x ::= ND vals) Q\<rangle>
-          x ::= ND vals  \<langle>Q\<rangle>"
-  unfolding wp_def
-proof-
-  show "\<turnstile> \<langle>\<lambda>s. \<exists>t. (x ::= ND vals, s) \<Rightarrow> t \<and> Q t\<rangle> x ::= ND vals \<langle>Q\<rangle>"
-    using tAssignND wp_AssND wp_def by auto
-qed
-
-(*
-tSelectND: "\<lbrakk>(b,c) \<in> set bs ;  \<forall>s. P s \<longrightarrow>  bval b s ;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>"
-
-SelectND: "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Rightarrow> t \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Rightarrow> t"
-*)
-
-(*
-Have a Precondition: P = 
-"\<lambda>s. (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"
-
-Need to Prove that
-
-1. Pick a (b,c) from set bs
-2. Prove that P s \<rightarrow> bval b s
-3. Prove that \<langle>P\<rangle> c \<langle>Q\<rangle> is a valid triple.
-
-*)
-
-
-thm SelectNDE 
-
-(*
-lemma "
-(b, c) \<in> set bs \<Longrightarrow>
-\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t \<and> bval b s \<Longrightarrow>
-\<exists>t. (c, s) \<Rightarrow> t \<and> Q t
-"
-proof-
-  assume bc: "(b,c) \<in> set bs"
-  assume sel: "\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t"
-  have h0: "\<exists>t. ((SELECT bs, s) \<Rightarrow> t \<and> Q t) \<Longrightarrow> \<exists>b c t. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t"
-    by auto
-  have h1: "\<exists>b c t. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t"
-    using sel h0 by fastforce
-  obtain b c t where
-     bc: "(b,c) \<in> set bs"
-     and guard: "bval b s"
-     and exec: "(c,s) \<Rightarrow> t"
-     and post: "Q t"
-  using h1 by blast
-  have h2: "(c, s) \<Rightarrow> t \<and> Q t"
-    using post exec by fastforce
-
-  have h2: "\<exists>t.(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> \<exists>t. (c, s) \<Rightarrow> t \<and> Q t"
-    by (metis h2)
-oops
-
-
-lemma select_rule:
-  assumes bc: "\<forall>b c. (b,c) \<in> set bs \<and> bval b s \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
-  shows "\<turnstile> \<langle>\<lambda>s. select_pre s Q bs \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
-
-
-  unfolding wp_def
-  unfolding select_pre_def
-  using assms apply -
-proof-
-  from bc obtain b c
-    where bc': "(b,c) \<in> set bs"
-    and bv: "bval b s"
-    and h: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
-    by auto
-
-  have h0: "\<turnstile> \<langle>\<lambda>s. \<exists>t. bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t\<rangle> c \<langle>Q\<rangle>"
-    by (smt (verit, ccfv_SIG) conseq h wp_def)
-  have h1: "(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow> \<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t"
-    by auto
-  have h2: "(SELECT bs, s) \<Rightarrow> t \<and> Q t \<Longrightarrow>  bval b s \<and> (c, s) \<Rightarrow> t \<and> Q t" sledgehammer
-  have h2: "\<turnstile> \<langle>\<lambda>s. \<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t\<rangle> c  \<langle>Q\<rangle>"
-    oops
-
-lemma "
-(\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)
-\<longrightarrow> (\<exists>b c. (b, c) \<in> set bs \<and> \<turnstile> \<langle>\<lambda>s. select_pre s Q bs \<and> bval b s\<rangle> c \<langle>Q\<rangle>)
-"
-  unfolding wp_def
-  unfolding select_pre_def
-  sorry
-
-lemma "
-\<forall>s.
-  (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t \<and> bval b s)
-  \<longrightarrow>
-  (\<exists>t. (c, s) \<Rightarrow> t \<and> Q t)"
-
-oops
-
-
-lemma SelectND_is_pre:
- " ((b,c) \<in> set bs \<Longrightarrow>
-     \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>) \<Longrightarrow>
-  \<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
-  unfolding wp_def
-proof -
-  assume bc: "(b,c) \<in> set bs"
-  assume wpc: "\<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>"
-  have h0: "\<forall>s. (\<exists>t. (SELECT bs,s) \<Rightarrow> t) \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s)"  by blast
-  have h1: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"
-    by (simp add: select_pre_def)
-  have h2: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>t. (SELECT bs, s) \<Rightarrow> t)"
-    by (metis h1)
-  have h3: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s)"
-    using h0 h2 by auto
-  have h4: "\<forall>s. select_pre s Q bs \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and>  \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)"
-    by (metis wpc bc)
-
-  show "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
-  qed
-  oops
-*)
-thm tSelectND
-thm SelectNDE
-
-lemma split_paired_All:
-  "(\<forall>bc. P bc) \<longleftrightarrow> (\<forall>b c. P (b,c))"
-  by simp
-
-lemma reform_all:
-  assumes h4: "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> P b c"
-  shows h5:  "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> P b c"
-proof
-  fix bc
-  assume bc: "bc \<in> set bs"
-  then obtain b c where "bc = (b,c)"
-    by fastforce
-
-  from h4 bc have "P b c"
-    using h4 bc \<open>bc = (b, c)\<close> by simp
-
-  thus "case bc of (b,c) \<Rightarrow> P b c"
-    using \<open>P b c\<close> \<open>bc = (b, c)\<close> by fastforce
-qed
+  "\<turnstile> \<langle>wp (x ::= ND vals) Q\<rangle> x ::= ND vals  \<langle>Q\<rangle>"
+  using wp_AssND 
+  by (fastforce simp: wp_def tAssignND)
 
 definition select_pre where
-"select_pre \<equiv> \<lambda>bs Q. (\<lambda>s.(\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t))"
+  "select_pre \<equiv> \<lambda>bs Q. (\<lambda>s.(\<exists>t. (SELECT bs, s) \<Down> t \<and> Q t))"
 
+(* that's a really bad name *)
 definition R where
-"R \<equiv> \<lambda>b c Q. (\<lambda>s. (\<exists>t. (c, s) \<Rightarrow> t \<and> Q t))"
+  "R \<equiv> \<lambda>b c Q. (\<lambda>s. (\<exists>t. (c, s) \<Down> t \<and> Q t))"
 
 lemma SelectND_is_pre:
-  assumes bc: "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
-  shows goal: "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+  assumes "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+    shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
 proof-
-  have h0: "\<forall>s. (\<exists>t. (SELECT bs,s) \<Rightarrow> t) \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s)"  by blast
-  have h1: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>t. (SELECT bs, s) \<Rightarrow> t \<and> Q t)"
-    by (simp add: select_pre_def)
-  have h2: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>t. (SELECT bs, s) \<Rightarrow> t)"
-    by (metis h1)
-  have h3: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (\<exists>t. (c, s) \<Rightarrow> t \<and> Q t))"
-    by (meson SelectNDE h1)
-  have h4: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> R b c Q s)"
-    by (simp add: R_def h3)
-  have h4: "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> \<turnstile> \<langle>R b c Q\<rangle> c \<langle>Q\<rangle>"
-    unfolding R_def using bc wp_def by auto
-  have h5: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow>
-               \<turnstile> \<langle>R b c Q\<rangle> c \<langle>Q\<rangle>"
-    using h4 by fastforce
+  have h3: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (\<exists>t. (c, s) \<Down> t \<and> Q t))"
+    unfolding select_pre_def by blast
+
   have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> \<turnstile> \<langle>\<lambda>s. R b c Q s \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
-    by (smt (verit, best) conseq h4 reform_all)
-  have h7: "\<turnstile> \<langle>select_pre bs Q\<rangle> SELECT bs \<langle>Q\<rangle>" 
-    apply (rule_tac 
-          P="\<lambda>s. select_pre bs Q s"
-          and R="\<lambda>b c s. R b c Q s"
-          in tSelectND) using h6 h4 
-    apply argo
-    by (metis R_def h3)
-  have h8: "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
-    by (smt (verit, del_insts) conseq h7 select_pre_def wp_def)
-  show ?thesis
-    by (metis h8)
+    using assms
+    unfolding R_def wp_def apply clarsimp
+    by (metis (no_types, lifting) strengthen_pre)
+
+  hence "\<turnstile> \<langle>select_pre bs Q\<rangle> SELECT bs \<langle>Q\<rangle>" 
+    unfolding R_def
+    using h3 by (fastforce intro: tSelectND)
+
+  thus ?thesis
+    by (fastforce simp: wp_def select_pre_def)
 qed
 
+(*
 lemma SelectND_is_pre2:
-  "(\<forall>b c.
-   (b,c) \<in> set bs \<longrightarrow>
-   c \<in> snds (b,c) \<longrightarrow>
-   \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)
-\<Longrightarrow>
-\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+  assumes "(\<forall>b c. (b,c) \<in> set bs \<longrightarrow> c \<in> snds (b,c) \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)"
+  shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+  nitpick
   sorry
-
+*)
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
-    case If thus ?case by(auto intro: conseq)
+    case If thus ?case by(force intro: conseq)
   next
-    case SKIP thus ?case by auto
-    case Assign thus ?case  by auto
-    case Seq thus ?case  by auto
+    case SKIP thus ?case by force
+  next
+    case Assign thus ?case  by force
+  next
+    case Seq thus ?case by force
   next
     case AssignND thus ?case by (rule AssignND_is_pre)
-    case SelectND thus ?case apply - sledgehammer
   next
-    case While thus ?case apply - sledgehammer by (simp add: while_is_pre)
+    case SelectND thus ?case 
+      using SelectND_is_pre by force
+  next
+    case While thus ?case using While_is_pre by force
   qed
 
 
-lemma sil_complete: assumes "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>" shows "\<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
-proof(rule strengthen_pre)
-  show "\<forall>s. P s \<longrightarrow> wp c Q s" using assms
-    by (auto simp: SIL_valid_def wp_def)
-  show "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>" by(rule wp_is_pre)
-qed
+lemma sil_complete: 
+  "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
+  apply (rule strengthen_pre[where P="wp c Q"])
+  by (fastforce intro: wp_is_pre simp: SIL_valid_def wp_def)+
 
-corollary sil_sound_complete: "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
-  by (metis sil_sound sil_complete)
-
+corollary sil_sound_complete: 
+  "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
+   by(fastforce simp: sil_sound sil_complete)
 
 end
 (*
