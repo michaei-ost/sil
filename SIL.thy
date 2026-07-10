@@ -31,69 +31,23 @@ tSeq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>Q\<rangle>;
 tIf: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
      \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<langle>Q\<rangle>"  |
 
-(*
-SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
-
-SelectND: "\<lbrakk> \<exists>(b,c) \<in> set bs. \<turnstile> \<langle>\<lambda>s. \<exists>(b,c) \<in> set bs. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle> \<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
-
-
-tSelectND: "\<lbrakk> \<forall>s. P s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and>  (\<exists>t. (c,s) \<Rightarrow> t \<and> Q t))\<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
-*)
-(*
-tSelectND: "\<lbrakk>\<forall>s. P s \<longrightarrow> (
-    (\<forall>b c. (b,c) \<in> set bs \<and> bval b s \<longrightarrow> \<turnstile> \<langle>\<lambda>x. P x \<and> bval b x\<rangle> c \<langle>Q\<rangle>)
-    \<and> (\<exists>b' c'. (b',c') \<in> set bs \<and> bval b' s))\<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
-*)
-
 tSelectND: "
 \<lbrakk>
-  \<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> (\<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>);
-  \<forall>s. P s \<longrightarrow> (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)
+  \<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> 
+      \<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>;
+  \<forall>s. P s \<longrightarrow> 
+      (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)
 \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
-(*
-tSelectND: "\<lbrakk>
-    \<forall>s. P s \<longrightarrow> (\<exists>(b,c) \<in> set bs. bval b s);
-
-    \<exists>(b,c) \<in> set bs.
-      \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>Q\<rangle>
-  \<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
-*)
-
-tWhile: "\<lbrakk>(\<And>n::nat. \<turnstile>
-  \<langle>\<lambda>s. Q (Suc n) s\<rangle>
-   c 
-  \<langle>\<lambda>s. Q n s\<rangle>)
-; \<And>s. Q 0 s \<Longrightarrow> \<not> bval b s
-; \<And>n s. Q (Suc n) s \<Longrightarrow> bval b s \<rbrakk>
- \<Longrightarrow> \<turnstile> 
-  \<langle>\<lambda>s. \<exists>n. Q n s\<rangle>
-     WHILE b DO c
- \<langle>\<lambda>s. Q 0 s\<rangle>" 
-|
-
-(*
-
-tWhile: "(\<And>n::nat. \<turnstile>
-  \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle>
-   c 
-  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>)
- \<Longrightarrow> \<turnstile> 
-  \<langle>\<lambda>s. P s \<and> (\<exists>n. T s n)\<rangle>
-     WHILE b DO c
- \<langle>\<lambda>s. P s \<and> \<not>bval b s\<rangle>" 
-|
-
-
-While: "\<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c \<langle>P\<rangle> \<Longrightarrow>
-        \<turnstile> \<langle>P\<rangle> WHILE b DO c \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle>"  |
-*)
+tWhile: "
+\<lbrakk>
+  \<And>n::nat. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>Q n\<rangle>; 
+  \<And>s. Q 0 s \<Longrightarrow> \<not> bval b s;
+  \<And>n s. Q (Suc n) s \<Longrightarrow> bval b s
+\<rbrakk>
+\<Longrightarrow> 
+  \<turnstile> \<langle>\<lambda>s. \<exists>n. Q n s\<rangle>  WHILE b DO c \<langle>\<lambda>s. Q 0 s\<rangle>" |
 
 conseq: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q'\<rangle>"

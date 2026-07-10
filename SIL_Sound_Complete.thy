@@ -8,7 +8,7 @@ begin
 
 subsubsection "Soundness"
 
-lemma sil_while_sound_2:
+lemma sil_while_sound:
   assumes "\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>Q n\<rangle>"
       and "\<And>n. \<forall>s. Q (Suc n) s \<longrightarrow> (\<exists>t. (c, s) \<Down> t \<and> Q n t)"
       and "\<And>s. Q 0 s \<Longrightarrow> \<not> bval b s"
@@ -19,23 +19,11 @@ lemma sil_while_sound_2:
   apply (induct n arbitrary: s rule: Nat.nat_less_induct, clarsimp)
   by (metis WhileFalse WhileTrue lessI not0_implies_Suc)
 
-
-lemma sil_while_sound:
-  assumes "\<And>n::nat. \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s \<and> T s n\<rangle> c  \<langle>\<lambda>s. P s \<and> (\<exists>n'<n. T s n')\<rangle>"
-      and "\<And>n::nat. \<forall>s. P s \<and> bval b s \<and> T s n \<longrightarrow> (\<exists>t. (c, s) \<Down> t \<and> P t \<and> (\<exists>n'<n. T t n'))"
-      and "P s"
-      and "T s m"
-    shows "\<exists>t. (WHILE b DO c, s) \<Down> t \<and> P t \<and> \<not> bval b t"
-  using assms
-  apply (induct m arbitrary: s rule: Nat.nat_less_induct)
-  by blast
-
-
 lemma sil_sound: 
   "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
   unfolding SIL_valid_def
   apply (induction rule: SIL.induct; blast?)
-  using sil_while_sound_2 by blast
+  using sil_while_sound by blast
 
 
 subsubsection "Weakest Precondition"
@@ -82,13 +70,75 @@ lemma wp_While_False[simp]:
 
 subsubsection "Completeness"
 
-definition while_inv where
-  "while_inv \<equiv> \<lambda>s b c Q. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q t"
+primrec QQ ::
+  "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
+where
+  "QQ R b c 0 = (\<lambda>s. R s \<and> \<not> bval b s)"
+| "QQ R b c (Suc n) = (\<lambda>s. wp c (QQ R b c n) s \<and> bval b s)"
+
+
+lemma While_Strengthen:
+  assumes exec: "(WHILE b DO c, s) \<Down> t"
+  and post: "Q t"
+  shows "\<exists>n. (QQ Q b c) n  s"
+  using exec post
+proof (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
+  case  WhileFalse then show ?case
+    by (meson QQ.simps(1))
+    next 
+      case (WhileTrue s1 s2 s3) 
+      then obtain n where hn: "QQ Q b c n s2"
+        using WhileTrue.hyps(2) WhileTrue.prems
+        by presburger
+      then have h0: "QQ Q b c n s2"
+        by simp
+      then have h1: "wp c (QQ Q b c n) s1"
+        unfolding wp_def
+      proof-
+        show "\<exists>t. (c, s1) \<Down> t \<and> QQ Q b c n t"
+        proof (rule exI[where x=s2])
+          show "(c, s1) \<Down> s2 \<and> QQ Q b c n s2"
+          using assms
+          by (simp add: WhileTrue.hyps(2) hn)
+      qed
+    qed
+    then have h2: "wp c (QQ Q b c n) s1 \<and> bval b s1"
+      by (metis h1 WhileTrue.hyps(1))      
+    show "\<exists>n. QQ Q b c n s1"
+        proof (rule exI[where x="Suc n"])
+          show "QQ Q b c (Suc n) s1"
+            by (simp add: h2)
+        qed
+    qed
+        
 
 lemma While_is_pre:
-  "(\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>) \<Longrightarrow> \<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
+  assumes "(\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>)"
+  shows "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
   unfolding wp_def  
-  sorry
+proof- 
+  have h1: "\<turnstile> \<langle>wp c (QQ Q b c n)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
+    by (metis assms)
+  have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (QQ Q b c n) s \<and> bval b s)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
+    by (smt (verit, ccfv_SIG) conseq h1)
+  have h3: "\<turnstile> \<langle>(QQ Q b c (Suc n))\<rangle> c  \<langle>QQ Q b c n\<rangle>"
+    by (simp add: h2)
+  have h4: "\<And>n::nat. \<turnstile> \<langle>(QQ Q b c) (Suc n)\<rangle> c  \<langle>(QQ  Q b c) n\<rangle>"
+    by (metis QQ.simps(2) assms strengthen_pre)
+  have h5: "\<And>s. (QQ Q b c) 0 s \<Longrightarrow> \<not> bval b s"
+    by simp
+  have h6: "\<And>n s. (QQ Q b c) (Suc n) s \<Longrightarrow> bval b s"
+    by simp
+  have h7: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>\<lambda>s. (QQ Q b c) 0 s\<rangle>"
+    using QQ_def
+    by (smt (verit, best) conseq h4 h5 h6 tWhile)
+  have h8: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    using QQ.simps(1) h7 weaken_post by presburger
+  have h9: "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q t\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    by (smt (verit, best) While_Strengthen conseq h8)
+  show "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q t\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    by (metis h9)
+qed
 
 
 lemma AssignND_is_pre: 
@@ -99,9 +149,8 @@ lemma AssignND_is_pre:
 definition select_pre where
   "select_pre \<equiv> \<lambda>bs Q. (\<lambda>s.(\<exists>t. (SELECT bs, s) \<Down> t \<and> Q t))"
 
-(* that's a really bad name *)
-definition R where
-  "R \<equiv> \<lambda>b c Q. (\<lambda>s. (\<exists>t. (c, s) \<Down> t \<and> Q t))"
+definition select_path_pre where
+  "select_path_pre \<equiv> \<lambda>b c Q. (\<lambda>s. (\<exists>t. (c, s) \<Down> t \<and> Q t))"
 
 lemma SelectND_is_pre:
   assumes "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
@@ -110,26 +159,18 @@ proof-
   have h3: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (\<exists>t. (c, s) \<Down> t \<and> Q t))"
     unfolding select_pre_def by blast
 
-  have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> \<turnstile> \<langle>\<lambda>s. R b c Q s \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
+  have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> \<turnstile> \<langle>\<lambda>s. select_path_pre b c Q s \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
     using assms
-    unfolding R_def wp_def apply clarsimp
+    unfolding select_path_pre_def wp_def apply clarsimp
     by (metis (no_types, lifting) strengthen_pre)
 
   hence "\<turnstile> \<langle>select_pre bs Q\<rangle> SELECT bs \<langle>Q\<rangle>" 
-    unfolding R_def
+    unfolding select_path_pre_def
     using h3 by (fastforce intro: tSelectND)
 
   thus ?thesis
     by (fastforce simp: wp_def select_pre_def)
 qed
-
-(*
-lemma SelectND_is_pre2:
-  assumes "(\<forall>b c. (b,c) \<in> set bs \<longrightarrow> c \<in> snds (b,c) \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>)"
-  shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
-  nitpick
-  sorry
-*)
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
