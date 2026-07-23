@@ -31,116 +31,26 @@ lemma sil_while_sound_ok:
         then show "\<exists>f. (WHILE b DO c, sa) \<Down> (f, True) \<and> Q 0 f"
           using f4 a2 a1 by (metis (no_types) Suc_less_eq2 WhileBodySucceeds WhileGuardFalse assms(2,3) lessI nat_neq_iff)
       qed
-(*
-lemma while_base_case:
-"
-  assumes "Q (Suc n) s"
-    and "\<And>s. Q (Suc 0) s \<Longrightarrow> \<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t"
-    and "\<And>n s. Q (Suc n) s \<Longrightarrow> bval b s"
-  shows "(n = 0) \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
-proof -
-  obtain u where
-    "(c,s) \<Down> (u,False)"
-    "Q 0 u"
-  have h0: "bval b s"
-    by (metis assms(3) assms(1))
-  have h1:
-      "(WHILE b DO c,s) \<Down> (u,False)"
-    by (simp add: WhileBodyAborts \<open>(c, s) \<Down> (u, False)\<close> h0)
-  have h2: "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
-    by (metis \<open>Q 0 u\<close> h1)
-  show ?thesis
-    by (metis h2)
-qed
-*)
-lemma while_error_sem_base:
-  assumes IH:
-    "\<And>m x n.
-       m < n \<Longrightarrow>
-       Q (Suc m) x \<Longrightarrow>
-       (\<exists>t. (WHILE b DO c, x) \<Down> (t, False) \<and> Q 0 t) \<Longrightarrow> \<turnstile> \<langle>Q (Suc n)\<rangle> c \<langle>ER (Q n)\<rangle> \<Longrightarrow> Q (Suc n) s"
-  and BodyERSem:
-    "\<And>s.
-       Q (Suc 0) s \<Longrightarrow>
-       (\<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t)"
-  and Guard:
-    "\<And>n s.
-       Q (Suc n) s \<Longrightarrow>
-       bval b s"
-  and BodyOKSem:
-    "\<And>n s.
-       Q (Suc (Suc n)) s \<Longrightarrow>
-       (\<exists>t. (c, s) \<Down> (t, True) \<and> Q (Suc n) t)"
-  and Base:
-    "n = 0"
-  shows
-    "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
-  sorry
+
 
 lemma sil_while_sound_er:
   assumes "\<And>n. \<turnstile> \<langle>Q (Suc (Suc n))\<rangle> c \<langle>OK (Q (Suc n))\<rangle>"
   and "\<turnstile> \<langle>Q 1\<rangle> c \<langle>ER (Q 0)\<rangle>"
   and "\<And>s. Q 1 s \<Longrightarrow> (\<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t)"
   and "\<And>n s. Q (Suc n) s \<Longrightarrow> bval b s"
-  and "Q (Suc n) s"
+  and "Q (Suc m) s"
   and "\<And>n. \<forall>s. Q (Suc (Suc n)) s \<longrightarrow> (\<exists>t. (c, s) \<Down> (t, True) \<and> Q (Suc n) t)"
   shows
     "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
   using assms
-  apply (induct n arbitrary: s rule: Nat.nat_less_induct, clarsimp)
-  apply (cases n) 
-   apply clarsimp
-  sledgehammer
+  apply (induct m arbitrary: s)
+  apply fastforce
+  apply blast
+  done
 
-  proof -
-    then obtain u where
-        "(c,s) \<Down> (u,False)"
-        "Q 0 u"
-        by (metis "0" assms(5) assms(3) One_nat_def)
-    have h0:
-      "bval b s"
-      by (metis assms(4) assms(5))
-   have h1:
-    "(WHILE b DO c,s) \<Down> (u,False)"
-     by (simp add: WhileBodyAborts \<open>(c, s) \<Down> (u, False)\<close> h0)
-   have h2: "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
-     by (metis \<open>Q 0 u\<close> h1)
 
-   show "(n = 0) \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
-  next
-    case (Suc n)
-
-  then obtain u where
-    Body:
-      "(c,s) \<Down> (u,True)"
-      "Q (Suc n) u"
-    using OK by blast
-
-  obtain t where
-    Loop:
-      "(WHILE b DO c,u) \<Down> (t,False)"
-      "Q 0 t"
-    using Suc.IH Body
-    by blast
-
-  have GuardTrue:
-    "bval b s"
-    using Guard Suc.prems
-    by simp
-
-  have
-    "(WHILE b DO c,s) \<Down> (t,False)"
-    using GuardTrue Body Loop
-    by (rule WhileBodySucceeds)
-
-  thus ?case
-    using Loop
-    by blast
-  qed
-  sorry
-
-lemma sil_sound_ok: 
-  "\<turnstile> \<langle>P\<rangle>c\<langle>OK Q\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>OK Q\<rangle>"
+lemma sil_sound: 
+  "\<turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>"
   unfolding SIL_valid_def
   apply (induction rule: SIL.induct; blast?)
   apply fastforce
@@ -148,55 +58,37 @@ lemma sil_sound_ok:
   apply fastforce
   apply fastforce
   apply fastforce
+  apply (case_tac R)
   apply fastforce
   apply fastforce
-  apply fastforce 
   using IfTrue apply fastforce
-  using IfTrue apply fastforce
+  apply (case_tac R)
+  apply clarsimp
+  apply blast
+  apply clarsimp
+  apply blast
+  apply (case_tac Q)
   apply fastforce
   apply fastforce
   apply fastforce defer defer
   apply fastforce
-    apply fastforce
+  apply fastforce
   apply clarsimp 
   using sil_while_sound_ok apply auto[1]
   apply clarsimp using sil_while_sound_er by auto
 
-lemma sil_sound_er:
- "\<turnstile> \<langle>P\<rangle>c\<langle>ER Q\<rangle> \<Longrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>ER Q\<rangle>"
-  unfolding SIL_valid_def
-  apply (induction rule: SIL.induct; blast?)
-  apply fastforce
-  apply fastforce
-  apply fastforce
-  apply fastforce
-  apply fastforce
-  apply fastforce
-  apply fastforce
-  apply fastforce 
-  using IfTrue apply fastforce
-  using IfTrue apply fastforce
-  apply fastforce
-  apply fastforce
-  apply fastforce defer defer
-  apply fastforce
-    apply fastforce
-  apply clarsimp 
-  using sil_while_sound_ok apply auto[1]
-  apply clarsimp
-  using sil_while_sound_er by auto
-
-lemma sil_sound:
- "\<turnstile> \<langle>P\<rangle>c\<langle>R\<rangle> \<Longrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>"
-  by (metis sil_sound_er sil_sound_ok post.exhaust)
 
 subsubsection "Weakest Precondition"
 
-definition wp :: "com \<Rightarrow> assn \<Rightarrow> assn" where
-  "wp c Q = (\<lambda>s. \<exists>t. (c,s) \<Down> t \<and>  Q t)"
+definition wp :: "com \<Rightarrow> post \<Rightarrow> assn" where
+  "wp c Q = (\<lambda>s. \<exists>t. (c,s) \<Down> t \<and> apply_post Q t)"
 
-lemma wp_SKIP [simp]: 
-  "wp SKIP Q = Q"
+lemma wp_SKIP_OK [simp]: 
+  "wp SKIP (OK Q) = Q"
+  by (rule ext) (fastforce simp: wp_def)
+
+lemma wp_SKIP_ER [simp]: 
+  "wp SKIP (ER Q) = (\<lambda>s. False)"
   by (rule ext) (fastforce simp: wp_def)
 
 lemma wp_Ass [simp]: 
@@ -207,12 +99,28 @@ lemma wp_AssND [simp]:
   "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
   by (fastforce simp: wp_def)
 
-lemma wp_SelectND[simp]: 
-  "wp (SelectND S) Q = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c Q s))"
+lemma wp_SelectND_OK[simp]: 
+  "wp (SelectND S) (OK Q) = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (OK Q) s))"
   by (fastforce simp: wp_def)
 
-lemma wp_Seq[simp]: 
-  "wp (c\<^sub>1;;c\<^sub>2) Q = wp c\<^sub>1 (wp c\<^sub>2 Q)"
+lemma wp_SelectND_ER[simp]: 
+  "wp (SelectND S) (ER Q) = 
+    (\<lambda>s. (\<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (ER Q) s)) \<or> (\<forall>(b,c) \<in> set S. \<not>bval b s \<and> Q s))"
+  apply (rule ext)
+  apply (simp add: wp_def)
+  apply (rule iffI)
+   apply clarsimp
+   apply blast
+  find_theorems "?P \<or> ?Q \<Longrightarrow> ?R"
+  apply (simp add: imp_disjL)
+  sledgehammer
+Hol
+lemma wp_Seq_OK[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) (OK Q) = wp c\<^sub>1 (OK (wp c\<^sub>2 (OK Q)))"
+  by (rule ext) (fastforce simp: wp_def)
+
+lemma wp_Seq_ER[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) (ER Q) = (\<lambda>s. wp c\<^sub>1 (OK (wp c\<^sub>2 (ER Q))) s \<or> wp c\<^sub>1 (ER Q) s )"
   by (rule ext) (fastforce simp: wp_def)
 
 lemma wp_If[simp]:

@@ -16,6 +16,15 @@ fun post_assn :: "post \<Rightarrow> assn" where
   "post_assn (OK Q) = Q"
 | "post_assn (ER Q) = Q"
 
+fun post_ok :: "post \<Rightarrow> bool" where
+  "post_ok (OK Q) = True"
+| "post_ok (ER Q) = False"
+
+fun apply_post :: "post \<Rightarrow> state \<times> bool \<Rightarrow> bool" where
+  "apply_post (OK Q) (s,b) = (Q s \<and> b)" 
+| "apply_post (ER Q) (s,b) = (Q s \<and> \<not>b)" 
+
+
 definition SIL_valid ::
   "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
 where
@@ -41,29 +50,23 @@ tAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x :
 
 tAssignNDER:  "\<turnstile> \<langle>P\<rangle> x ::= ND {} \<langle>ER P\<rangle>"  |
 
-tSeqOK: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>OK R\<rangle> \<rbrakk>
-      \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>OK R\<rangle>"  |
+tSeq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
+      \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>R\<rangle>"  |
 
-tSeqER1: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>ER Q\<rangle>\<rbrakk>
+tSeqER: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>ER Q\<rangle>\<rbrakk>
       \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>ER Q\<rangle>"  |
 
-tSeqER2: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>ER R\<rangle> \<rbrakk>
-      \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>ER R\<rangle>"  |
+tIf: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>R\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
+     \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<langle>R\<rangle>"  |
 
-tIfOK: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>OK Q\<rangle> \<rbrakk>
-     \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<langle>OK Q\<rangle>"  |
-
-tIfER: "\<lbrakk> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> c\<^sub>1 \<langle>ER Q\<rangle>;  \<turnstile> \<langle>\<lambda>s. P s \<and> \<not> bval b s\<rangle> c\<^sub>2 \<langle>ER Q\<rangle> \<rbrakk>
-     \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<langle>ER Q\<rangle>"  |
-
-tSelectNDOK: "
+tSelectND: "
 \<lbrakk>
   \<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> 
-      \<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>OK Q\<rangle>;
+      \<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>;
   \<forall>s. P s \<longrightarrow> 
       (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)
 \<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>OK Q\<rangle>" |
+   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
 tSelectNDNP: (* No Path *)
 "
@@ -71,15 +74,6 @@ tSelectNDNP: (* No Path *)
   \<forall>s. P s \<longrightarrow> (\<forall>(b,c) \<in> set bs. \<not>bval b s)
 \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>ER P\<rangle>" |
-
-tSelectNDER: "
-\<lbrakk>
-  \<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> 
-      \<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>ER Q\<rangle>;
-  \<forall>s. P s \<longrightarrow> 
-      (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)
-\<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>ER Q\<rangle>" |
 
 tWhileOK: "
 \<lbrakk>
@@ -106,8 +100,8 @@ conseqER: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<lan
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>ER Q'\<rangle>"
 
 
-lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeqOK tIfOK
-lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeqOK SIL.tIfOK
+lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeq tIf
+lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeq SIL.tIf
 
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>R\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>R\<rangle>"

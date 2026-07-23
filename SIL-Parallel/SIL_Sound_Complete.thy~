@@ -31,19 +31,112 @@ lemma sil_while_sound_ok:
         then show "\<exists>f. (WHILE b DO c, sa) \<Down> (f, True) \<and> Q 0 f"
           using f4 a2 a1 by (metis (no_types) Suc_less_eq2 WhileBodySucceeds WhileGuardFalse assms(2,3) lessI nat_neq_iff)
       qed
+(*
+lemma while_base_case:
+"
+  assumes "Q (Suc n) s"
+    and "\<And>s. Q (Suc 0) s \<Longrightarrow> \<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t"
+    and "\<And>n s. Q (Suc n) s \<Longrightarrow> bval b s"
+  shows "(n = 0) \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
+proof -
+  obtain u where
+    "(c,s) \<Down> (u,False)"
+    "Q 0 u"
+  have h0: "bval b s"
+    by (metis assms(3) assms(1))
+  have h1:
+      "(WHILE b DO c,s) \<Down> (u,False)"
+    by (simp add: WhileBodyAborts \<open>(c, s) \<Down> (u, False)\<close> h0)
+  have h2: "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
+    by (metis \<open>Q 0 u\<close> h1)
+  show ?thesis
+    by (metis h2)
+qed
+*)
+lemma while_error_sem_base:
+  assumes IH:
+    "\<And>m x n.
+       m < n \<Longrightarrow>
+       Q (Suc m) x \<Longrightarrow>
+       (\<exists>t. (WHILE b DO c, x) \<Down> (t, False) \<and> Q 0 t) \<Longrightarrow> \<turnstile> \<langle>Q (Suc n)\<rangle> c \<langle>ER (Q n)\<rangle> \<Longrightarrow> Q (Suc n) s"
+  and BodyERSem:
+    "\<And>s.
+       Q (Suc 0) s \<Longrightarrow>
+       (\<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t)"
+  and Guard:
+    "\<And>n s.
+       Q (Suc n) s \<Longrightarrow>
+       bval b s"
+  and BodyOKSem:
+    "\<And>n s.
+       Q (Suc (Suc n)) s \<Longrightarrow>
+       (\<exists>t. (c, s) \<Down> (t, True) \<and> Q (Suc n) t)"
+  and Base:
+    "n = 0"
+  shows
+    "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
+  sorry
 
 lemma sil_while_sound_er:
   assumes "\<And>n. \<turnstile> \<langle>Q (Suc (Suc n))\<rangle> c \<langle>OK (Q (Suc n))\<rangle>"
   and "\<turnstile> \<langle>Q 1\<rangle> c \<langle>ER (Q 0)\<rangle>"
   and "\<And>s. Q 1 s \<Longrightarrow> (\<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t)"
   and "\<And>n s. Q (Suc n) s \<Longrightarrow> bval b s"
-  and "Q n s"
+  and "Q (Suc n) s"
   and "\<And>n. \<forall>s. Q (Suc (Suc n)) s \<longrightarrow> (\<exists>t. (c, s) \<Down> (t, True) \<and> Q (Suc n) t)"
   shows
     "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
   using assms
   apply (induct n arbitrary: s rule: Nat.nat_less_induct, clarsimp)
+  apply (cases n) 
+   apply clarsimp
   sledgehammer
+
+  proof -
+    then obtain u where
+        "(c,s) \<Down> (u,False)"
+        "Q 0 u"
+        by (metis "0" assms(5) assms(3) One_nat_def)
+    have h0:
+      "bval b s"
+      by (metis assms(4) assms(5))
+   have h1:
+    "(WHILE b DO c,s) \<Down> (u,False)"
+     by (simp add: WhileBodyAborts \<open>(c, s) \<Down> (u, False)\<close> h0)
+   have h2: "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
+     by (metis \<open>Q 0 u\<close> h1)
+
+   show "(n = 0) \<Longrightarrow> \<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
+  next
+    case (Suc n)
+
+  then obtain u where
+    Body:
+      "(c,s) \<Down> (u,True)"
+      "Q (Suc n) u"
+    using OK by blast
+
+  obtain t where
+    Loop:
+      "(WHILE b DO c,u) \<Down> (t,False)"
+      "Q 0 t"
+    using Suc.IH Body
+    by blast
+
+  have GuardTrue:
+    "bval b s"
+    using Guard Suc.prems
+    by simp
+
+  have
+    "(WHILE b DO c,s) \<Down> (t,False)"
+    using GuardTrue Body Loop
+    by (rule WhileBodySucceeds)
+
+  thus ?case
+    using Loop
+    by blast
+  qed
   sorry
 
 lemma sil_sound_ok: 

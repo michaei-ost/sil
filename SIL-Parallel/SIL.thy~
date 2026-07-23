@@ -97,7 +97,7 @@ tWhileER: "
   \<And>n s. Q (Suc n) s \<Longrightarrow> bval b s
 \<rbrakk>
 \<Longrightarrow> 
-  \<turnstile> \<langle>\<lambda>s. \<exists>n. Q n s\<rangle>  WHILE b DO c \<langle>ER (Q 0)\<rangle>" |
+  \<turnstile> \<langle>\<lambda>s. \<exists>n. Q (Suc n) s\<rangle>  WHILE b DO c \<langle>ER (Q 0)\<rangle>" |
 
 conseqOK: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>OK Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>OK Q'\<rangle>" |
