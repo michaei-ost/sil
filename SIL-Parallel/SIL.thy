@@ -50,7 +50,7 @@ tAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x :
 
 tAssignNDER:  "\<turnstile> \<langle>P\<rangle> x ::= ND {} \<langle>ER P\<rangle>"  |
 
-tSeq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
+tSeqOK: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
       \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>R\<rangle>"  |
 
 tSeqER: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>ER Q\<rangle>\<rbrakk>
@@ -97,11 +97,15 @@ conseqOK: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<lan
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>OK Q'\<rangle>" |
 
 conseqER: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
-        \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>ER Q'\<rangle>"
+        \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>ER Q'\<rangle>" |
 
+false_pre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<langle>Q\<rangle>" |
 
-lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeq tIf
-lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeq SIL.tIf
+disjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<langle>Q\<rangle> \<rbrakk> 
+        \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<langle>Q\<rangle>"
+
+lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeqOK tIf
+lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeqOK SIL.tIf
 
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>R\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>R\<rangle>"
@@ -122,7 +126,6 @@ lemma weaken_post_ok:
 lemma weaken_post_er:
   "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile> \<langle>P\<rangle> c \<langle>ER Q'\<rangle>"
   using conseqER by blast
-
 
 text\<open>The assignment and While rule are awkward to use in actual proofs
 because their pre and postcondition are of a very special form and the actual

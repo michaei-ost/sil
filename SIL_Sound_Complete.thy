@@ -117,6 +117,7 @@ lemma While_is_pre:
   shows "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
   unfolding wp_def  
 proof- 
+  fix n
   have h1: "\<turnstile> \<langle>wp c (QQ Q b c n)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
     by (metis assms)
   have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (QQ Q b c n) s \<and> bval b s)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
@@ -140,7 +141,6 @@ proof-
     by (metis h9)
 qed
 
-
 lemma AssignND_is_pre: 
   "\<turnstile> \<langle>wp (x ::= ND vals) Q\<rangle> x ::= ND vals  \<langle>Q\<rangle>"
   using wp_AssND 
@@ -157,7 +157,7 @@ lemma SelectND_is_pre:
     shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
 proof-
   have h3: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (\<exists>t. (c, s) \<Down> t \<and> Q t))"
-    unfolding select_pre_def by blast
+    unfolding select_pre_def  by blast
 
   have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> \<turnstile> \<langle>\<lambda>s. select_path_pre b c Q s \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
     using assms
