@@ -280,4 +280,28 @@ text \<open>
   This is the proof as you might present it in a lecture. The remaining
   cases are simple enough to be proved automatically:
 \<close>
+text_raw\<open>\snip{BigStepDetLong}{0}{2}{%\<close>
+
+(*
+theorem
+  "\<lbrakk>cs  \<Down> t ;  cs \<Down> t' ; nd_free_cs cs\<rbrakk>  \<Longrightarrow>  t' = t"
+proof (induction arbitrary: t' rule: big_step.induct)
+  \<comment> \<open>the only interesting case, \<^text>\<open>WhileTrue\<close>:\<close>
+  fix b c s s\<^sub>1 t t'
+  \<comment> \<open>The assumptions of the rule:\<close>
+  assume "bval b s" and "(c,s) \<Down> s\<^sub>1" and "(WHILE b DO c,s\<^sub>1) \<Down> t"
+  \<comment> \<open>Ind.Hyp; note the \<^text>\<open>\<And>\<close> because of arbitrary:\<close>
+  assume IHc: "\<And>t'. (c,s) \<Down> t' \<Longrightarrow> t' = s\<^sub>1"
+  assume IHw: "\<And>t'. (WHILE b DO c,s\<^sub>1) \<Down> t' \<Longrightarrow> t' = t"
+  \<comment> \<open>Premise of implication:\<close>
+  assume "(WHILE b DO c,s) \<Down> t'"
+  with \<open>bval b s\<close> obtain s\<^sub>1' where
+      c: "(c,s) \<Down> s\<^sub>1'" and
+      w: "(WHILE b DO c,s\<^sub>1') \<Down> t'"
+    by auto
+  from c IHc have "s\<^sub>1' = s\<^sub>1" by blast
+  with w IHw show "t' = t" by blast
+qed fastforce+ \<comment> \<open>prove the rest automatically\<close>
+text_raw\<open>}%endsnip\<close>
+*)
 end

@@ -117,6 +117,7 @@ lemma While_is_pre:
   shows "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
   unfolding wp_def  
 proof- 
+  fix n
   have h1: "\<turnstile> \<langle>wp c (QQ Q b c n)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
     by (metis assms)
   have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (QQ Q b c n) s \<and> bval b s)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
