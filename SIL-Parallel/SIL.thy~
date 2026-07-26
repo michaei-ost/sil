@@ -99,12 +99,10 @@ conseqOK: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<lan
 conseqER: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>ER Q'\<rangle>" |
 
-false_pre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<langle>Q\<rangle>"
+false_pre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<langle>Q\<rangle>" |
 
-(*
 disjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<langle>Q\<rangle> \<rbrakk> 
         \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<langle>Q\<rangle>"
-*)
 
 lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeqOK tIf
 lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeqOK SIL.tIf
@@ -128,9 +126,6 @@ lemma weaken_post_ok:
 lemma weaken_post_er:
   "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile> \<langle>P\<rangle> c \<langle>ER Q'\<rangle>"
   using conseqER by blast
-
-
-
 
 text\<open>The assignment and While rule are awkward to use in actual proofs
 because their pre and postcondition are of a very special form and the actual

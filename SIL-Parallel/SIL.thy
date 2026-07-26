@@ -46,7 +46,7 @@ tAbort: "\<turnstile> \<langle>P\<rangle> ABORT \<langle>ER P\<rangle>"  |
 
 tAssign:  "\<turnstile> \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<langle>OK P\<rangle>"  |
 
-tAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := v)))\<rangle> x::= ND vals \<langle>OK P\<rangle>"  |
+tAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<langle>OK P\<rangle>"  |
 
 tAssignNDER:  "\<turnstile> \<langle>P\<rangle> x ::= ND {} \<langle>ER P\<rangle>"  |
 

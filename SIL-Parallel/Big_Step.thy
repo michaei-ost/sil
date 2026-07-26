@@ -17,7 +17,7 @@ where
 Skip: "(SKIP,s) \<Down> (s, True)" |
 Abort: "(ABORT,s) \<Down> (s, False)" |
 Assign: "(x ::= a,s) \<Down> (s(x := aval a s), True)" |
-AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, s) \<Down> (s(x := v), True)" |
+AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, s) \<Down> (s(x := aval v s), True)" |
 AssignNDEmpty: "(x ::= ND {}, s) \<Down> (s, False)" |
 SeqTrue: "\<lbrakk> (c\<^sub>1,s\<^sub>1) \<Down> (s\<^sub>2,True);  (c\<^sub>2,s\<^sub>2) \<Down> sb \<rbrakk> \<Longrightarrow> (c\<^sub>1;;c\<^sub>2, s\<^sub>1) \<Down> sb" |
 SeqFalse: "\<lbrakk> (c\<^sub>1,s\<^sub>1) \<Down> (s\<^sub>2,False) \<rbrakk> \<Longrightarrow> (c\<^sub>1;;c\<^sub>2, s\<^sub>1) \<Down> (s\<^sub>2,False)" |

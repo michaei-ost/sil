@@ -181,18 +181,34 @@ thm SeqE
 thm SeqTrue
 thm SeqFalse
 
-lemma "seq_er_is_pre":
-  assumes c1:"\<turnstile> \<langle>wp c1 (ER Q)\<rangle> c1  \<langle>ER Q\<rangle>"
-  and c2: "\<turnstile> \<langle>wp c2 (ER Q)\<rangle> c2  \<langle>ER Q\<rangle>"
-  shows "\<turnstile> \<langle>wp (c1;; c2) (ER Q)\<rangle>
-         c1;; c2 \<langle>ER Q\<rangle>"
-  unfolding wp_def
-proof-
-  have h0: "\<forall>s. wp c1 (ER Q) s \<Longrightarrow> wp (c1;; c2) (ER Q) s"
-    by auto
-  oops
+lemma "seq_is_pre":
+  assumes c1: "\<forall>R. \<turnstile> \<langle>wp c1 R\<rangle> c1  \<langle>R\<rangle>"
+  and c2: "\<turnstile> \<langle>wp c2 Q\<rangle> c2  \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (c1;; c2) Q\<rangle>
+         c1;; c2 \<langle>Q\<rangle>"
+proof (cases Q)
+  case (OK x)
+  have "\<turnstile> \<langle>wp c1 (OK (wp c2 Q))\<rangle> c1  \<langle>OK (wp c2 Q)\<rangle>"
+    by (metis c1)
+  then show ?thesis
+    using OK c2 by auto
+next
+  case (ER x)
+  have h0: "\<turnstile> \<langle>wp c1 (OK (wp c2 Q))\<rangle> c1  \<langle>OK (wp c2 Q)\<rangle>"
+    by (metis c1)
+  have h1: "\<turnstile> \<langle>wp c1 (OK (wp c2 Q))\<rangle> c1;;c2  \<langle>ER x\<rangle>"
+    by (metis c2 ER h0 tSeqOK)
+  have h2: "\<turnstile> \<langle>wp c1 (ER x)\<rangle> c1  \<langle>ER x\<rangle>"
+    by (metis c1)
+  have h3: "\<turnstile> \<langle>wp c1 (ER x)\<rangle> c1;;c2  \<langle>ER x\<rangle>"
+    by (metis c1 tSeqER)
+  have h4: "\<turnstile> \<langle>\<lambda>s. (wp c1 (ER x)) s \<or> wp c1 (OK (wp c2 Q)) s\<rangle> c1;;c2  \<langle>ER x\<rangle>"
+    by (metis h3 h1 disjunction)
+  then show ?thesis
+    by (smt (verit) ER strengthen_pre wp_Seq_ER)
+qed
 
-  thm SelectNDE
+
 
 (*(SELECT ?bs, ?s) \<Down> ?t \<Longrightarrow> 
 (\<And>b c. (b, c) \<in> set ?bs \<Longrightarrow> 
@@ -356,7 +372,39 @@ proof (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
             show "QQ Q b c (Suc n) s1"
               using WhileBodyAborts.prems by auto
           qed
-        qed
+qed
+
+lemma While_Strengthen_ER:
+  assumes exec: "(WHILE b DO c, s) \<Down> t"
+  and post: "apply_post (ER Q) t"
+  shows "\<exists>n. (QQ_er Q b c) (Suc n) s"
+  using exec post
+  apply (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
+    apply simp
+   defer
+   apply clarsimp
+   apply (metis QQ_er_1.simps(1) apply_post.simps(2) wp_def)
+  apply clarsimp
+proof-
+  fix s\<^sub>1 s\<^sub>2 a Q
+  assume bval: "bval b s\<^sub>1"
+     and c_step: "(c, s\<^sub>1) \<Down> (s\<^sub>2, True)"
+     and while_step: "(WHILE b DO c, s\<^sub>2) \<Down> (a, False)"
+     and IH: "\<And>Q. Q a \<Longrightarrow> \<exists>n. QQ_er_1 Q b c n s\<^sub>2"
+     and Qa: "Q a"
+
+  obtain n where hn: "QQ_er_1 Q b c n s\<^sub>2"
+    by (metis Qa IH)
+  then have h0: "QQ_er_1 Q b c n s\<^sub>2"
+    by simp
+  then have h1: "wp c (OK (QQ_er_1 Q b c n)) s\<^sub>1"
+    unfolding wp_def
+    using c_step by auto
+  then have h2: "wp c (OK (QQ_er_1 Q b c n)) s\<^sub>1 \<and> bval b s\<^sub>1"
+    by (metis h1 bval)
+  show "\<exists>n. QQ_er_1 Q b c n s\<^sub>1"
+    by (meson QQ_er_1.simps(2) h2)
+qed
 
 lemma While_is_pre_ok:
   assumes "\<forall>Q. \<turnstile> \<langle>wp c (OK Q)\<rangle> c  \<langle>OK Q\<rangle>"
@@ -387,11 +435,10 @@ proof-
     by (metis h9)
 qed
 
-
 lemma While_is_pre_er:
   assumes "\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>"
   shows "\<turnstile> \<langle>wp (WHILE b DO c) (ER Q)\<rangle> (WHILE b DO c) \<langle>(ER Q)\<rangle>"
-  unfolding wp_def 
+  unfolding wp_def
   apply clarsimp 
 proof-
   have h0: "\<exists>a ba. (WHILE b DO c, s) \<Down> (a, ba) \<and> Q a \<and> \<not> ba 
@@ -403,28 +450,28 @@ proof-
     by (metis assms)
   have h1: "\<turnstile> \<langle>wp c (OK (QQ_er Q b c (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
     by (metis assms)
-  have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (ER (QQ Q b c n)) s \<and> bval b s)\<rangle> c  \<langle>ER (QQ Q b c n)\<rangle>"
-    by (metis (no_types, lifting) h1 strengthen_pre)
-  have h3: "\<turnstile> \<langle>(QQ Q b c (Suc (Suc n)))\<rangle> c  \<langle>OK (QQ Q b c (Suc n))\<rangle>"
-    using h2 unfolding wp_def QQ_def
-    sledgehammer
-  have h4: "\<And>n::nat. \<turnstile> \<langle>(QQ Q b c) (Suc n)\<rangle> c  \<langle>OK ((QQ  Q b c) n)\<rangle>"
-    by (metis QQ.simps(2) assms strengthen_pre)
-  have h5: "\<And>s. (QQ Q b c) 0 s \<Longrightarrow> \<not> bval b s"
-    by simp
-  have h6: "\<And>n s. (QQ Q b c) (Suc n) s \<Longrightarrow> bval b s"
-    by simp
-  have h7: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>OK (\<lambda>s. (QQ Q b c) 0 s)\<rangle>"
-    using QQ_def
-    by (smt (verit, best) conseqOK h4 h5 h6 tWhileOK)
-  have h8: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
-    using QQ.simps(1) h7 weaken_post_ok by presburger
-  have h9: "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> apply_post (OK Q) t\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
-    by (smt (verit, best) While_Strengthen conseqOK h8)
-  show "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> apply_post (OK Q) t\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
-    by (metis h9)
+  have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (OK (QQ_er Q b c (Suc n))) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+    by (metis (no_types, lifting) assms strengthen_pre_ok)
+  have h3: "\<turnstile> \<langle>(QQ_er Q b c (Suc (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+    using h2 by auto
+  have h4: "\<And>n::nat. \<turnstile> \<langle>(QQ_er Q b c) (Suc (Suc n))\<rangle> c  \<langle>OK ((QQ_er Q b c) (Suc n))\<rangle>"
+    by (metis QQ_er.simps(2) QQ_er_1.simps(2) assms strengthen_pre_ok)
+  have h5: "\<turnstile> \<langle>QQ_er Q b c 1\<rangle> c  \<langle>ER (QQ_er Q b c 0)\<rangle>"
+    by (metis One_nat_def QQ_er.simps(1,2) QQ_er_1.simps(1) assms strengthen_pre_er)
+  have h6: "\<And>n s. (QQ_er Q b c) (Suc n) s \<Longrightarrow> bval b s"
+    by (metis QQ_er.simps(2) QQ_er_1.simps(1,2) old.nat.exhaust)
+  have h7: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ_er Q b c) (Suc n)  s\<rangle> WHILE b DO c \<langle>ER (\<lambda>s. (QQ_er Q b c) 0 s)\<rangle>"
+    using h4 h5 h6 tWhileER by blast
+  have h8: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ_er Q b c) (Suc n)  s\<rangle> WHILE b DO c \<langle>ER Q\<rangle>"
+    using h7 by auto
+  have h9: "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> (t,False) \<and> Q t\<rangle> WHILE b DO c \<langle>ER Q\<rangle>"
+    by (smt (verit, ccfv_threshold) While_Strengthen_ER apply_post.simps(2) h8 strengthen_pre)
+  show "\<turnstile> \<langle>\<lambda>s. \<exists>a ba. (WHILE b DO c, s) \<Down> (a, ba) \<and> Q a \<and> \<not> ba\<rangle>
+            WHILE b DO c  
+          \<langle>ER Q\<rangle> " 
+    by (smt (verit, ccfv_SIG) conseqER h9)
 qed
-  oops
+
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
@@ -450,7 +497,8 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
       by (metis false_pre wp_AssignND_Empty_ER wp_AssignND_NonEmpty_ER strengthen_pre tAssignNDER)
   next
     case (Seq c1 c2)
-    then show ?case sorry
+    then show ?case
+      by (meson seq_is_pre)
   next
     case (If x1 c1 c2)
     then show ?case
@@ -467,80 +515,6 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
       apply (metis While_is_pre_ok)
     by (metis While_is_pre_er)
 qed
-   
-(*
-primrec QQ ::
-  "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
-where
-  "QQ R b c 0 = (\<lambda>s. R s \<and> \<not> bval b s)"
-| "QQ R b c (Suc n) = (\<lambda>s. wp c (QQ R b c n) s \<and> bval b s)"
-
-
-lemma While_Strengthen:
-  assumes exec: "(WHILE b DO c, s) \<Down> t"
-  and post: "Q t"
-  shows "\<exists>n. (QQ Q b c) n  s"
-  using exec post
-proof (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
-  case  WhileFalse then show ?case
-    by (meson QQ.simps(1))
-    next 
-      case (WhileTrue s1 s2 s3) 
-      then obtain n where hn: "QQ Q b c n s2"
-        using WhileTrue.hyps(2) WhileTrue.prems
-        by presburger
-      then have h0: "QQ Q b c n s2"
-        by simp
-      then have h1: "wp c (QQ Q b c n) s1"
-        unfolding wp_def
-      proof-
-        show "\<exists>t. (c, s1) \<Down> t \<and> QQ Q b c n t"
-        proof (rule exI[where x=s2])
-          show "(c, s1) \<Down> s2 \<and> QQ Q b c n s2"
-          using assms
-          by (simp add: WhileTrue.hyps(2) hn)
-      qed
-    qed
-    then have h2: "wp c (QQ Q b c n) s1 \<and> bval b s1"
-      by (metis h1 WhileTrue.hyps(1))      
-    show "\<exists>n. QQ Q b c n s1"
-        proof (rule exI[where x="Suc n"])
-          show "QQ Q b c (Suc n) s1"
-            by (simp add: h2)
-        qed
-    qed
-        
-
-lemma While_is_pre:
-  assumes "(\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>)"
-  shows "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> (WHILE b DO c) \<langle>Q\<rangle>"
-  unfolding wp_def  
-proof- 
-  fix n
-  have h1: "\<turnstile> \<langle>wp c (QQ Q b c n)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
-    by (metis assms)
-  have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (QQ Q b c n) s \<and> bval b s)\<rangle> c  \<langle>QQ Q b c n\<rangle>"
-    by (smt (verit, ccfv_SIG) conseq h1)
-  have h3: "\<turnstile> \<langle>(QQ Q b c (Suc n))\<rangle> c  \<langle>QQ Q b c n\<rangle>"
-    by (simp add: h2)
-  have h4: "\<And>n::nat. \<turnstile> \<langle>(QQ Q b c) (Suc n)\<rangle> c  \<langle>(QQ  Q b c) n\<rangle>"
-    by (metis QQ.simps(2) assms strengthen_pre)
-  have h5: "\<And>s. (QQ Q b c) 0 s \<Longrightarrow> \<not> bval b s"
-    by simp
-  have h6: "\<And>n s. (QQ Q b c) (Suc n) s \<Longrightarrow> bval b s"
-    by simp
-  have h7: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>\<lambda>s. (QQ Q b c) 0 s\<rangle>"
-    using QQ_def
-    by (smt (verit, best) conseq h4 h5 h6 tWhile)
-  have h8: "\<turnstile> \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>Q\<rangle>"
-    using QQ.simps(1) h7 weaken_post by presburger
-  have h9: "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q t\<rangle> WHILE b DO c \<langle>Q\<rangle>"
-    by (smt (verit, best) While_Strengthen conseq h8)
-  show "\<turnstile> \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> Q t\<rangle> WHILE b DO c \<langle>Q\<rangle>"
-    by (metis h9)
-qed
-
-*)
 
 lemma valid_imp_wp: "\<Turnstile> \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow>
     \<forall>s. P s \<longrightarrow> wp c Q s"
