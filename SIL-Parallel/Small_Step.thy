@@ -4,26 +4,36 @@ theory Small_Step imports Star Big_Step begin
 
 subsection "The transition relation"
 
+datatype post = OK state | ER state
+fun post_state :: "post \<Rightarrow> state" where
+  "post_state (OK Q) = Q"
+| "post_state (ER Q) = Q"
+
 inductive
-  small_step :: "com * state \<Rightarrow> com * state \<Rightarrow> bool" (infix \<open>\<rightarrow>\<close> 55)
+  small_step :: "com * post \<Rightarrow> com * post \<Rightarrow> bool" (infix \<open>\<rightarrow>\<close> 55)
 where
-Assign:  "(x ::= a, s) \<rightarrow> (SKIP, s(x := aval a s))" |
+Abort: "(ABORT, OK s) \<rightarrow> (SKIP, ER s)" |
 
-Seq1:    "(SKIP;;c\<^sub>2,s) \<rightarrow> (c\<^sub>2,s)" |
-Seq2:    "(c\<^sub>1,s) \<rightarrow> (c\<^sub>1',s') \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,s) \<rightarrow> (c\<^sub>1';;c\<^sub>2,s')" |
+Assign:  "(x ::= a, OK s) \<rightarrow> (SKIP, OK (s(x := aval a s)))" |
 
-IfTrue:  "bval b s \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> (c\<^sub>1,s)" |
-IfFalse: "\<not>bval b s \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> (c\<^sub>2,s)" |
+AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, OK s) \<rightarrow> (SKIP, OK (s(x := aval v s)))" |
+AssignNDEmpty: "(x ::= ND {}, OK s) \<rightarrow> (ABORT, OK s)" |
 
-While:   "(WHILE b DO c,s) \<rightarrow>
-            (IF b THEN c;; WHILE b DO c ELSE SKIP,s)" |
+Seq1:    "(SKIP;;c\<^sub>2, OK s) \<rightarrow> (c\<^sub>2, OK s)" |
+Seq2:    "(c\<^sub>1,OK s) \<rightarrow> (c\<^sub>1',s') \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,OK s) \<rightarrow> (c\<^sub>1';;c\<^sub>2,s')" |
 
-AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, s) \<rightarrow> (SKIP, s(x := v))" |
-SelectND: "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Down> t \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<rightarrow> (c,s)"
+IfTrue:  "bval b s \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,OK s) \<rightarrow> (c\<^sub>1,OK s)" |
+IfFalse: "\<not>bval b s \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,OK s) \<rightarrow> (c\<^sub>2,OK s)" |
 
+While:   "(WHILE b DO c,OK s) \<rightarrow> (IF b THEN c;; WHILE b DO c ELSE SKIP, OK s)" |
+
+SelectND: "\<lbrakk>(b, c) \<in> set bs; bval b s\<rbrakk> \<Longrightarrow> (SELECT bs, OK s) \<rightarrow> (c,OK s)" |
+SelectNDN: "\<lbrakk>\<forall>(b, c) \<in> set bs. \<not>bval b s\<rbrakk>  \<Longrightarrow> (SELECT bs, OK s) \<rightarrow> (ABORT, OK s)" |
+
+Er: "c \<noteq> SKIP \<Longrightarrow> (c, ER s) \<rightarrow> (SKIP, ER s)"
 
 abbreviation
-  small_steps :: "com * state \<Rightarrow> com * state \<Rightarrow> bool" (infix \<open>\<rightarrow>*\<close> 55)
+  small_steps :: "com * post \<Rightarrow> com * post \<Rightarrow> bool" (infix \<open>\<rightarrow>*\<close> 55)
 where "x \<rightarrow>* y == star small_step x y"
 
 subsection\<open>Executability\<close>
@@ -68,19 +78,68 @@ done
 
 subsection "Equivalence with big-step semantics"
 
-lemma star_seq2: "(c1,s) \<rightarrow>* (c1',s') \<Longrightarrow> (c1;;c2,s) \<rightarrow>* (c1';;c2,s')"
-proof(induction rule: star_induct)
-  case refl thus ?case by simp
+lemma ok_reachable_from_ok:
+  "(c, s) \<rightarrow>* (c', OK s') \<Longrightarrow> \<exists>x. s = OK x"
+proof (induction "(c, s)" "(c', OK s')" arbitrary: c s rule: star.induct)
+  case refl
+  then show ?case
+    by auto
 next
-  case step
-  thus ?case by (metis Seq2 star.step)
+  case (step y)
+  obtain c'' s'' where x_split: "y = (c'', s'')" by force
+  thus ?case
+    using small_step.cases step.hyps(1,3) by fastforce
 qed
 
-lemma seq_comp:
-  "\<lbrakk> (c1,s1) \<rightarrow>* (SKIP,s2); (c2,s2) \<rightarrow>* (SKIP,s3) \<rbrakk>
-   \<Longrightarrow> (c1;;c2, s1) \<rightarrow>* (SKIP,s3)"
-by(blast intro: star.step star_seq2 star_trans)
+(*
+proof (induction "(c, s)" "(c', OK s')" arbitrary: c s rule: star.induct)
+  case refl
+  then show ?case
+    by auto
+next
+  case (step y)
+  obtain c'' s'' where x_split: "y = (c'', s'')" by force
+  thus ?case
+    using small_step.cases step.hyps(1,3) by fastforce
+qed
+*)
 
+lemma star_ER: "(SKIP, ER s) \<rightarrow>* (SKIP, ER s)"
+  by auto
+
+lemma star_seq2_OK: "(c1, OK s) \<rightarrow>* (c1', OK s') \<Longrightarrow> (c1;;c2, OK s) \<rightarrow>* (c1';;c2, OK s')"
+proof(induction "(c1, OK s)" "(c1', OK s')" arbitrary: c1 s rule: star.induct)
+  case refl thus ?case by simp
+next
+  case (step x c1 s)
+  obtain c1'' s'' where x_eq: "x = (c1'', OK s'')" 
+    by (metis ok_reachable_from_ok old.prod.exhaust step.hyps(2))
+  thus ?case
+    by (metis Seq2 star.simps step.hyps(1,3))
+qed
+
+lemma seq_ER_collapse: "(c1;;c2, ER s) \<rightarrow> (SKIP, ER s)"
+  by auto
+
+lemma seq_ER_collapse_star: "(c1;;c2, ER s) \<rightarrow>* (SKIP, ER s)"
+  by auto
+
+lemma seq_comp_OK:
+  "\<lbrakk> (c1, OK s1) \<rightarrow>* (SKIP,OK s2); (c2,OK s2) \<rightarrow>* (SKIP,s3) \<rbrakk>
+   \<Longrightarrow> (c1;;c2, OK s1) \<rightarrow>* (SKIP,s3)"
+  by (meson Seq1 star.step star_seq2_OK star_trans)
+
+lemma seq_comp_ER:
+  "(c1, OK s1) \<rightarrow>* (SKIP, ER s2) \<Longrightarrow> (c1;;c2, OK s1) \<rightarrow>* (SKIP, ER s2)"
+proof(induction rule: star.induct)
+  case refl
+  then show ?case sorry
+next
+  case (step y)
+  then show ?case sorry
+qed
+
+(*
 text\<open>The following proof corresponds to one on the board where one would
 show chains of \<open>\<rightarrow>\<close> and \<open>\<rightarrow>*\<close> steps.\<close>
 
@@ -142,18 +201,128 @@ next
         small_step.SelectND star.simps)
 qed
 
+*)
 
-lemma small1_big_continue:
-  "cs \<rightarrow> cs' \<Longrightarrow> cs' \<Down> t \<Longrightarrow> cs \<Down> t"
-apply (induction arbitrary: t rule: small_step.induct)
-apply auto
+lemma small_to_big_single_ok:
+  "(c, OK s) \<rightarrow> (SKIP, OK s') \<Longrightarrow> (c, s) \<Down> (s', True)"
+  apply (cases rule: small_step.cases)
+by blast+
+
+lemma small_to_big_single_er:
+  "(c, OK s) \<rightarrow> (SKIP, ER s') \<Longrightarrow> (c, s) \<Down> (s', False)"
+  apply (cases rule: small_step.cases)
+by blast+
+
+lemma small_to_big_step_ok:
+  assumes  "(c, OK s) \<rightarrow> (c', OK s')"
+      and  "(c', s') \<Down> (t,True)"
+    shows "(c,s) \<Down> (t,True)"
+  using assms
+  apply (induction "(c, OK s)" "(c', OK s')" arbitrary: c c' s s' t  rule: small_step.induct)
+           apply fast
+          apply fast
+         apply fast
+        apply fast
+       apply fast
+      apply fast
+     apply force
+    apply blast
+   apply fast
+  apply blast
 done
 
-lemma small_to_big:
-  "cs \<rightarrow>* (SKIP,t) \<Longrightarrow> cs \<Down> t"
-apply (induction cs "(SKIP,t)" rule: star.induct)
-apply (auto intro: small1_big_continue)
+lemma small_to_big_step_er:
+  assumes  "(c, OK s) \<rightarrow> (c', OK s')"
+      and  "(c', s') \<Down> (t,False)"
+    shows "(c,s) \<Down> (t,False)"
+  using assms
+  apply (induction "(c, OK s)" "(c', OK s')" arbitrary: c c' s s' t  rule: small_step.induct)
+           apply fast
+          apply fast
+         apply fast
+        apply fast
+        apply (metis (no_types, lifting) Big_Step.SeqE SeqFalse SeqTrue small_to_big_step_ok)
+       apply fast
+      apply fast
+     apply force
+    apply blast
+  apply fast
 done
+
+lemma small_to_big_step:
+  assumes  "(c, OK s) \<rightarrow> (c', OK s')"
+      and  "(c', s') \<Down> ta"
+    shows "(c,s) \<Down> ta"
+  by (metis (full_types) assms(1,2) old.prod.exhaust small_to_big_step_er
+      small_to_big_step_ok)
+
+lemma small_to_big_ok:
+  "(c, OK s) \<rightarrow>* (SKIP, OK t) \<Longrightarrow> (c,s) \<Down> (t,True)"
+proof (induction "(c, OK s)" "(SKIP,OK t)" arbitrary: c s rule: star.induct)
+  case refl
+  then show ?case by blast
+next
+  case (step y)
+  then show ?case proof-
+   obtain c' s' where x_eq: "y = (c', OK s')"
+     by (metis ok_reachable_from_ok old.prod.exhaust step.hyps(2))
+   then show ?case
+     using small_to_big_step step.hyps(1,3) x_eq by fastforce
+ qed
+qed
+
+lemma instant_er_eq:
+  assumes "(c', ER s) \<rightarrow>* (SKIP, ER t)"
+  shows "t = s"
+proof-
+  show ?thesis 
+    by (smt (verit) assms post.distinct(1) post.inject(2) small_step.simps snd_eqD star.cases
+        swap_simp)
+qed
+
+lemma pure_er:
+  assumes "(c, OK x) \<rightarrow> (c', ER t)"
+  and "(c', ER t) \<rightarrow>* (SKIP, ER t)"
+  shows "(c, x) \<Down> (t, False)"
+using assms
+  apply (induction "(c, OK x)" "(c', ER t)" arbitrary: c x c' t rule: small_step.induct)
+  apply fast
+by blast
+
+
+lemma small_to_big_er:
+  "(c, q) \<rightarrow>* (SKIP, ER t) \<Longrightarrow>
+   (case q of
+      OK s \<Rightarrow> (c,s) \<Down> (t,False)
+    | ER s \<Rightarrow> s = t)" 
+  apply (induction "(c, q)" "(SKIP,ER t)" arbitrary: c q rule: star.induct)
+   apply clarsimp
+  apply (case_tac q)
+   apply clarsimp
+   apply (case_tac b)
+    apply clarsimp
+  using small_to_big_step_er apply auto[1]
+   apply clarsimp
+   defer
+   apply (case_tac q)
+    apply clarsimp
+   apply (cases q)
+    apply clarsimp
+    apply(case_tac b)
+     apply (metis instant_er_eq star.step)
+    apply (metis instant_er_eq star.step)
+   apply (smt (verit, del_insts) post.simps(6) ser star.step)
+  by (simp add: pure_er)
+
+
+lemma small_to_big_er_start:
+  assumes  "(c, OK s) \<rightarrow> (c', ER s')"
+  shows "(c,s) \<Down> (s', False)"
+  using assms
+proof-
+  have h0: "c' \<noteq> SKIP \<Longrightarrow> (c,s) \<Down> (s', False)"
+    by (metis Er assms post.simps(5) small_to_big_er star.step star_ER)
+  oops
 
 text \<open>
   Finally, the equivalence theorem:

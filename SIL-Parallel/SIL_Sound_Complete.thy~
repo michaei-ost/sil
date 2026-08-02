@@ -112,7 +112,7 @@ lemma wp_Assign_ER [simp]:
   using wp_def by fastforce
 
 lemma wp_AssignND_NonEmpty_OK [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
+  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := aval v s))))"
   by (fastforce simp: wp_def)
 
 lemma wp_AssignND_NonEmpty_ER [simp]: 
