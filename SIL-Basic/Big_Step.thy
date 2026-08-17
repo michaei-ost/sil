@@ -12,40 +12,22 @@ so the syntax becomes \<open>(c,s) \<Down> s'\<close>.
 
 text_raw\<open>\snip{BigStepdef}{0}{1}{%\<close>
 inductive
-  big_step :: "com \<times> state \<Rightarrow> state \<times> bool \<Rightarrow> bool" (infix \<open>\<Down>\<close> 55)
+  big_step :: "com \<times> state \<Rightarrow> state \<Rightarrow> bool" (infix \<open>\<Down>\<close> 55)
 where
-Skip: "(SKIP,s) \<Down> (s, True)" |
-Abort: "(ABORT,s) \<Down> (s, False)" |
-Assign: "(x ::= a,s) \<Down> (s(x := aval a s), True)" |
-AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, s) \<Down> (s(x := v), True)" |
-AssignNDEmpty: "(x ::= ND {}, s) \<Down> (s, False)" |
-SeqTrue: "\<lbrakk> (c\<^sub>1,s\<^sub>1) \<Down> (s\<^sub>2,True);  (c\<^sub>2,s\<^sub>2) \<Down> sb \<rbrakk> \<Longrightarrow> (c\<^sub>1;;c\<^sub>2, s\<^sub>1) \<Down> sb" |
-SeqFalse: "\<lbrakk> (c\<^sub>1,s\<^sub>1) \<Down> (s\<^sub>2,False) \<rbrakk> \<Longrightarrow> (c\<^sub>1;;c\<^sub>2, s\<^sub>1) \<Down> (s\<^sub>2,False)" |
-IfTrue: "\<lbrakk> bval b s;  (c\<^sub>1,s) \<Down> tb \<rbrakk> \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<Down> tb" |
-IfFalse: "\<lbrakk> \<not>bval b s;  (c\<^sub>2,s) \<Down> tb \<rbrakk> \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<Down> tb" |
-SelectND: "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Down> tb \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Down> tb" |
-SelectNDFalse: "\<lbrakk> \<forall>(b, c) \<in> set bs. \<not>bval b s\<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Down> (s,False)" |
-WhileGuardFalse: "\<not>bval b s \<Longrightarrow> (WHILE b DO c,s) \<Down> (s,True)" |
-WhileBodySucceeds:
-"\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Down> (s\<^sub>2,True);  (WHILE b DO c, s\<^sub>2) \<Down> sb \<rbrakk>  
-\<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Down> sb" |
-WhileBodyAborts:
-"\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Down> (s\<^sub>2,False)\<rbrakk>  
-\<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Down> (s\<^sub>2,False)"
+Skip: "(SKIP,s) \<Down> s" |
+Assign: "(x ::= a,s) \<Down> s(x := aval a s)" |
+AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, s) \<Down> s(x := aval v s)" |
+Seq: "\<lbrakk> (c\<^sub>1,s\<^sub>1) \<Down> s\<^sub>2;  (c\<^sub>2,s\<^sub>2) \<Down> s\<^sub>3 \<rbrakk> \<Longrightarrow> (c\<^sub>1;;c\<^sub>2, s\<^sub>1) \<Down> s\<^sub>3" |
+IfTrue: "\<lbrakk> bval b s;  (c\<^sub>1,s) \<Down> t \<rbrakk> \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<Down> t" |
+IfFalse: "\<lbrakk> \<not>bval b s;  (c\<^sub>2,s) \<Down> t \<rbrakk> \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<Down> t" |
+SelectND: "\<lbrakk> (b, c) \<in> set bs; bval b s; (c, s) \<Down> t \<rbrakk> \<Longrightarrow> (SELECT bs, s) \<Down> t" |
+WhileFalse: "\<not>bval b s \<Longrightarrow> (WHILE b DO c,s) \<Down> s" |
+WhileTrue:
+"\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Down> s\<^sub>2;  (WHILE b DO c, s\<^sub>2) \<Down> t \<rbrakk>  
+\<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Down> t"
 print_theorems
  
 text_raw\<open>}%endsnip\<close>
-
-text_raw\<open>\snip{BigStepEx}{1}{2}{%\<close>
-schematic_goal ex: "(''x'' ::= N 5;; ''y'' ::= V ''x'', s) \<Down> ?t"
-apply(rule SeqTrue)
-apply(rule Assign)
-apply simp
-apply(rule Assign)
-done
-text_raw\<open>}%endsnip\<close>
-
-thm ex[simplified]
 
 text\<open>We want to execute the big-step rules:\<close>
 
@@ -109,19 +91,15 @@ inductive_cases WhileE[elim]: "(WHILE b DO c,s) \<Down> t"
 thm WhileE
 text\<open>Only [elim]: [elim!] would not terminate.\<close>
 
-text\<open>An automatic example:\<close>
-
-lemma "(IF b THEN SKIP ELSE SKIP, s) \<Down> (t,a) \<Longrightarrow> t = s \<and> a"
-by blast
 
 (* Using rule inversion to prove simplification rules: *)
 lemma assign_simp:
-  "(x ::= a,s) \<Down> (s',b) \<longleftrightarrow> (s' = s(x := aval a s) \<and> b)"
+  "(x ::= a,s) \<Down> s' \<longleftrightarrow> (s' = s(x := aval a s))"
   by auto
 
 text \<open>An example combining rule inversion and derivations\<close>
 lemma Seq_assoc:
-  "(c1;; c2;; c3, s) \<Down> (s,b) \<longleftrightarrow> (c1;; (c2;; c3), s) \<Down> (s,b)" 
+  "(c1;; c2;; c3, s) \<Down> s \<longleftrightarrow> (c1;; (c2;; c3), s) \<Down> s" 
 by auto
 
 subsection "Command Equivalence"
@@ -251,7 +229,8 @@ theorem big_step_determ:
       apply fastforce
      apply fastforce
     apply fastforce
-   apply fastforce
+    apply fastforce
+  apply fastforce
   by (metis WhileE fst_conv nd_free.simps(7))
 
 text \<open>
@@ -259,27 +238,4 @@ text \<open>
   cases are simple enough to be proved automatically:
 \<close>
 text_raw\<open>\snip{BigStepDetLong}{0}{2}{%\<close>
-
-(*
-theorem
-  "\<lbrakk>cs  \<Down> t ;  cs \<Down> t' ; nd_free_cs cs\<rbrakk>  \<Longrightarrow>  t' = t"
-proof (induction arbitrary: t' rule: big_step.induct)
-  \<comment> \<open>the only interesting case, \<^text>\<open>WhileTrue\<close>:\<close>
-  fix b c s s\<^sub>1 t t'
-  \<comment> \<open>The assumptions of the rule:\<close>
-  assume "bval b s" and "(c,s) \<Down> s\<^sub>1" and "(WHILE b DO c,s\<^sub>1) \<Down> t"
-  \<comment> \<open>Ind.Hyp; note the \<^text>\<open>\<And>\<close> because of arbitrary:\<close>
-  assume IHc: "\<And>t'. (c,s) \<Down> t' \<Longrightarrow> t' = s\<^sub>1"
-  assume IHw: "\<And>t'. (WHILE b DO c,s\<^sub>1) \<Down> t' \<Longrightarrow> t' = t"
-  \<comment> \<open>Premise of implication:\<close>
-  assume "(WHILE b DO c,s) \<Down> t'"
-  with \<open>bval b s\<close> obtain s\<^sub>1' where
-      c: "(c,s) \<Down> s\<^sub>1'" and
-      w: "(WHILE b DO c,s\<^sub>1') \<Down> t'"
-    by auto
-  from c IHc have "s\<^sub>1' = s\<^sub>1" by blast
-  with w IHw show "t' = t" by blast
-qed fastforce+ \<comment> \<open>prove the rest automatically\<close>
-text_raw\<open>}%endsnip\<close>
-*)
 end

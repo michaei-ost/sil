@@ -40,7 +40,7 @@ lemma wp_Ass [simp]:
   by (fastforce simp: wp_def)
 
 lemma wp_AssND [simp]: 
-  "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
+  "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s[v/x])))"
   by (fastforce simp: wp_def)
 
 lemma wp_SelectND[simp]: 
@@ -141,7 +141,6 @@ proof-
     by (metis h9)
 qed
 
-
 lemma AssignND_is_pre: 
   "\<turnstile> \<langle>wp (x ::= ND vals) Q\<rangle> x ::= ND vals  \<langle>Q\<rangle>"
   using wp_AssND 
@@ -158,7 +157,7 @@ lemma SelectND_is_pre:
     shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
 proof-
   have h3: "\<forall>s. select_pre bs Q s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> bval b s \<and> (\<exists>t. (c, s) \<Down> t \<and> Q t))"
-    unfolding select_pre_def by blast
+    unfolding select_pre_def  by blast
 
   have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> \<turnstile> \<langle>\<lambda>s. select_path_pre b c Q s \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
     using assms

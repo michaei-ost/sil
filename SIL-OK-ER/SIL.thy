@@ -20,6 +20,10 @@ fun post_ok :: "post \<Rightarrow> bool" where
   "post_ok (OK Q) = True"
 | "post_ok (ER Q) = False"
 
+fun apply_post :: "post \<Rightarrow> state \<times> bool \<Rightarrow> bool" where
+  "apply_post (OK Q) (s,b) = (Q s \<and> b)" 
+| "apply_post (ER Q) (s,b) = (Q s \<and> \<not>b)" 
+
 
 definition SIL_valid ::
   "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
