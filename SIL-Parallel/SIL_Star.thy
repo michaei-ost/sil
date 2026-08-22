@@ -100,9 +100,6 @@ tParallelSkipR: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1  \<langle>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||SKIP \<langle>Q\<rangle>"
 
 
-lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeqOK tIf
-lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeqOK SIL.tIf
-
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>R\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>R\<rangle>"
   by (smt (verit, ccfv_SIG) tConseqER tConseqOK post.exhaust)

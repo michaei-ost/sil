@@ -70,8 +70,14 @@ inductive_cases AbortE[elim!]: "(ABORT,s) \<rightarrow> ct"
 thm AbortE
 inductive_cases AssignE[elim!]: "(x::=a,s) \<rightarrow> ct"
 thm AssignE
+inductive_cases AssignNDE[elim!]: "(x::= ND A,s) \<rightarrow> ct"
+thm AssignNDE
 inductive_cases SeqE[elim]: "(c1;;c2,s) \<rightarrow> ct"
 thm SeqE
+inductive_cases ParE[elim]: "(c1||c2,s) \<rightarrow> ct"
+thm ParE
+inductive_cases SelectNDE[elim]: "(SELECT S, s) \<rightarrow> ct"
+thm SelectNDE
 inductive_cases IfE[elim!]: "(IF b THEN c1 ELSE c2,s) \<rightarrow> ct"
 inductive_cases WhileE[elim]: "(WHILE b DO c, s) \<rightarrow> ct"
 

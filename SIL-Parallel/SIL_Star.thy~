@@ -6,7 +6,7 @@ subsection "SIL Logic for Partial Correctness"
 
 theory SIL_Star imports Small_Step SIL_Single_Step begin
 
-definition SIL_valid ::
+definition SIL_Star_Valid ::
   "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
 where
 "\<Turnstile> \<langle>P\<rangle> c \<langle>R\<rangle> \<equiv>
@@ -15,7 +15,7 @@ where
     | ER Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c, sOK s) \<rightarrow>* (SKIP, sER t) \<and> Q t)))"
 
 inductive
-  SIL :: "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
+  SIL_Star :: "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
 where
 tSkip: "\<turnstile> \<langle>P\<rangle> SKIP \<langle>OK P\<rangle>"  |
 

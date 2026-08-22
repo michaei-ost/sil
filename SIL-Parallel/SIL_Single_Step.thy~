@@ -67,8 +67,6 @@ sConseqOK: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<la
 sConseqER: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<leadsto> c' \<langle>ER Q'\<rangle>" |
 
-sSubstituteCom: "\<lbrakk>\<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>Q\<rangle>\<rbrakk> \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. P s \<and> c' = c\<^sub>1'\<rangle> c \<leadsto> c\<^sub>1' \<langle>Q\<rangle>" |
-
 sFalsePre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<leadsto> c' \<langle>Q\<rangle>" |
 
 sDisjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<leadsto> c' \<langle>Q\<rangle> \<rbrakk> 
