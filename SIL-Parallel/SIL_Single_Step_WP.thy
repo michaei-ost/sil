@@ -51,7 +51,7 @@ lemma wp_single_Seq_ER: "wp_single (c\<^sub>1;;c\<^sub>2) c' (ER Q) = (\<lambda>
   apply (cases c\<^sub>1)
   unfolding wp_single_def by fastforce+
 
-lemma wp_single_If_OK: "wp_single (IF b THEN c\<^sub>1 ELSE c\<^sub>2) c' (OK Q) = 
+lemma wp_single_If_OK: "wp_single (IF b THEN c\<^sub>1 ELSE c\<^sub>2) c' (OK Q) =
   (\<lambda>s. if bval b s then c' = c\<^sub>1 \<and> Q s else c' = c\<^sub>2 \<and> Q s)"
   unfolding wp_single_def
   apply clarsimp

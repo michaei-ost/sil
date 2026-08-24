@@ -23,14 +23,17 @@ lemma sil_single_step_sound:
          apply (case_tac Q)
          apply clarsimp
          apply fastforce
-        apply (case_tac R)
+        apply (case_tac Q)
         apply clarsimp
-        apply fastforce
+      apply fastforce
+      apply(case_tac R)
        apply clarsimp
        apply fastforce
       apply (case_tac R)
       apply clarsimp
-      apply fastforce
+   apply fastforce
+    apply(case_tac R)
+    apply fastforce
   by fastforce
 
 end

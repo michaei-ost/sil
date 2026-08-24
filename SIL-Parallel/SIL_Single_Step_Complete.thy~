@@ -6,49 +6,82 @@ begin
 
 subsubsection "Soundness"
 
-lemma com_in_pre:
-  assumes "\<turnstile> \<langle>\<lambda>s. P s \<and> c' = c\<^sub>2\<rangle> c\<^sub>1 \<leadsto> c' \<langle>Q\<rangle>"
-  shows: "\<turnstile> \<langle>\<lambda>s. P s\<rangle> c\<^sub>1 \<leadsto> c\<^sub>2 \<langle>Q\<rangle>"
-
-
 lemma seq_wp_single_is_pre:
-  assumes "\<turnstile> \<langle>wp_single c\<^sub>1 c' Q\<rangle> c\<^sub>1 \<leadsto> c' \<langle>Q\<rangle>"
-  and " \<turnstile> \<langle>wp_single c\<^sub>2 c' Q\<rangle> c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
-shows "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' Q\<rangle> c\<^sub>1;;c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  assumes "\<forall>c' .\<turnstile> \<langle>wp_single c\<^sub>1 c' Q\<rangle> c\<^sub>1 \<leadsto> c' \<langle>Q\<rangle>"
+  and "\<forall>c' . \<turnstile> \<langle>wp_single c\<^sub>2 c' Q\<rangle> c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+shows "\<forall>c' .\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' Q\<rangle> c\<^sub>1;;c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
 
-proof(cases "c\<^sub>1 = SKIP")
-  case True
-  fix Q
-  obtain Q' where  "Q' = post_assn Q"
-    by auto
-  have h0: "\<turnstile> \<langle>Q'\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c\<^sub>2 \<langle>OK Q'\<rangle>"
-    by (metis True sSeqSkip)
-  have h1: "\<forall>s. wp_single (c\<^sub>1;;c\<^sub>2) c' (OK Q') s \<longrightarrow>  Q' s"
-    unfolding wp_single_def
-    using True by auto
-  have h2: " \<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' (OK Q')\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c' \<langle>OK Q'\<rangle>"
-    unfolding wp_single_def
-    using wp_single_Seq_OK sledgehammer
-    by (metis h0 h1 sConseqOK)
- have h3: "\<forall>s. wp_single (c\<^sub>1;;c\<^sub>2) c' (ER Q') s \<longrightarrow>  False"
-    unfolding wp_single_def
-    using True by auto
-  have h4: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' (ER Q')\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c\<^sub>' \<langle>ER Q'\<rangle>"
-    using h3 sFalsePre by presburger
-  have h5: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' Q\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c\<^sub>2 \<langle>Q\<rangle>"
-    by (metis \<open>Q' = post_assn Q\<close> h2 h4 post_assn.elims)
-  then show ?thesis sledgehammer
-next
-  case False
-  then show ?thesis sorry
+proof(intro allI)
+  fix c'
+  show "\<turnstile> \<langle>wp_single (c\<^sub>1;; c\<^sub>2) c' Q\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  proof (cases "c\<^sub>1 = SKIP")
+    case True
+      obtain Q' where  assn: "Q' = post_assn Q"
+      by auto
+    have h0: "\<turnstile> \<langle>\<lambda>s. Q' s \<and> c\<^sub>2 = c'\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c' \<langle>OK Q'\<rangle>"
+      by (metis sSubstituteCom sSeqSkip True)
+    have h1: "\<forall>s. wp_single (c\<^sub>1;;c\<^sub>2) c' (OK Q') s \<longrightarrow>  Q' s \<and> c\<^sub>2 = c'"
+      unfolding wp_single_def
+      using True by auto
+    have h2: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' (OK Q')\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c' \<langle>OK Q'\<rangle>"
+      unfolding wp_single_def
+      using wp_single_Seq_OK h0 h1 sConseqOK wp_single_def
+      by auto
+   have h3: "\<forall>s. wp_single (c\<^sub>1;;c\<^sub>2) c' (ER Q') s \<longrightarrow>  False"
+      unfolding wp_single_def
+      using True by auto
+    have h4: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' (ER Q')\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c' \<langle>ER Q'\<rangle>"
+      using h3 sFalsePre by presburger
+    have h5: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' Q\<rangle> c\<^sub>1;; c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+      by (metis assn h2 h4 post_assn.elims)
+    then show ?thesis by auto
+  next
+    case False
+     fix c\<^sub>1'
+    have h1: "\<turnstile> \<langle>wp_single c\<^sub>1 c\<^sub>1' Q\<rangle> c\<^sub>1;;c\<^sub>2 \<leadsto> c\<^sub>1';;c\<^sub>2 \<langle>Q\<rangle>"
+      using assms sSeq by auto
+    have h2: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1';;c\<^sub>2\<rangle> (c\<^sub>1;;c\<^sub>2) \<leadsto> c' \<langle>Q\<rangle>"
+      by (smt (verit) h1 sFalsePre strengthen_pre)
+    have h3: "\<turnstile> \<langle>\<lambda>s. (\<exists>c\<^sub>1'. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1';;c\<^sub>2)\<rangle> (c\<^sub>1;;c\<^sub>2) \<leadsto> c' \<langle>Q\<rangle>"
+      by (smt (verit, ccfv_SIG) assms(1) com.inject(3) h2 sSeq strengthen_pre)
+    have h4: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' Q\<rangle> (c\<^sub>1;;c\<^sub>2) \<leadsto> c' \<langle>Q\<rangle>"
+      apply(cases Q)
+      using wp_single_Seq_OK False apply (smt (verit, del_insts) Pair_inject SIL_Single_Step.post.simps(5) Small_Step.SeqE
+          Small_Step.post.distinct(1) h3 strengthen_pre wp_single_def)
+      using wp_single_Seq_OK False by (smt (verit, ccfv_SIG) Pair_inject SIL_Single_Step.post.simps(6) Small_Step.SeqE
+          Small_Step.post.distinct(1) h3 sConseqER wp_single_def)
+    then show ?thesis by auto
+  qed
 qed
- 
 
+lemma wp_single_if_is_pre:
+  assumes "\<forall>c'. \<turnstile> \<langle>wp_single c\<^sub>1 c' Q\<rangle> c\<^sub>1 \<leadsto> c' \<langle>Q\<rangle>"
+   and "\<forall>c'.  \<turnstile> \<langle>wp_single c\<^sub>2 c' Q\<rangle> c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+ shows "\<forall>c'. \<turnstile> \<langle>wp_single (IF b THEN c\<^sub>1 ELSE c\<^sub>2) c' Q\<rangle>  IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  apply(intro allI)
+  apply(cases Q)
+  defer
+   apply (simp add: sFalsePre wp_single_If_ER)
+proof-
+  fix c' Q'
+  assume Qeq: "Q = OK Q'"
+  have h0: "\<turnstile> \<langle>\<lambda>s. Q' s \<and> bval b s \<and> c' = c\<^sub>1\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c' \<langle>OK Q'\<rangle>" 
+    using sIfTrue sSubstituteCom strengthen_pre weaken_post_ok  by (smt (verit, best))
+  have h1: "\<turnstile> \<langle>\<lambda>s. Q' s \<and> \<not>bval b s \<and> c' = c\<^sub>2\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c' \<langle>OK Q'\<rangle>" 
+    using sIfFalse sSubstituteCom strengthen_pre weaken_post_ok by (smt (verit, best))
+  have h2: "\<turnstile> \<langle>\<lambda>s. Q' s \<and> bval b s \<and> c' = c\<^sub>1 \<or> Q' s \<and> \<not>bval b s \<and> c' = c\<^sub>2\<rangle>  
+        IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+    by (simp add: Qeq h0 h1 sDisjunction)
+  have h4: "\<turnstile> \<langle>\<lambda>s. if bval b s then c' = c\<^sub>1 \<and> Q' s else c' = c\<^sub>2 \<and> Q' s\<rangle>  
+        IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>" by (smt (verit, best) h2 strengthen_pre)
+  then show "\<turnstile> \<langle>wp_single (IF b THEN c\<^sub>1 ELSE c\<^sub>2) c' Q\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+    by (simp add: Qeq wp_single_If_OK)
+qed
 
 
 lemma wp_single_is_pre: 
   "\<turnstile> \<langle>wp_single c c' Q\<rangle> c \<leadsto> c' \<langle>Q\<rangle>"
-proof(induction c arbitrary: Q)
+proof(induction c arbitrary: Q c')
   case SKIP
   then show ?case 
     apply (cases Q)
@@ -79,15 +112,16 @@ next
   then show ?case by (simp add: seq_wp_single_is_pre)
 next
   case (If x1 c1 c2)
-  then show ?case
-    apply(cases Q)
-    using wp_single_If_OK sorry
+  then show ?case sorry
 next
   case (SelectND x)
   then show ?case sorry
 next
   case (While x1 c)
-  then show ?case sorry
+  then show ?case
+    apply(cases Q)
+    using wp_single_While_OK sFalsePre sWhile apply (metis strengthen_pre)
+    using wp_single_While_ER sFalsePre by auto
 next
   case (Par c1 c2)
   then show ?case sorry
@@ -103,7 +137,7 @@ lemma sil_complete:
   "\<Turnstile> \<langle>P\<rangle> c \<leadsto> c'\<langle>Q\<rangle> \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c \<leadsto> c'\<langle>Q\<rangle>"
   apply (rule strengthen_pre[where P="wp_single c c' Q"])
   apply (metis valid_imp_wp)
-by (metis wp_is_pre)
+by (metis wp_single_is_pre)
 
 corollary sil_sound_complete: 
   "\<turnstile> \<langle>P\<rangle> c \<leadsto> c'\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle> c \<leadsto> c'\<langle>Q\<rangle>"
