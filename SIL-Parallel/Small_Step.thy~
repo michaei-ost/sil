@@ -4,14 +4,14 @@ theory Small_Step imports Star Big_Step begin
 
 subsection "The transition relation"
 
-datatype post = sOK state | sER state
+datatype sPost = sOK state | sER state
 
-fun post_state :: "post \<Rightarrow> state" where
+fun post_state :: "sPost \<Rightarrow> state" where
   "post_state (sOK Q) = Q"
 | "post_state (sER Q) = Q"
 
 inductive
-  small_step :: "com * post \<Rightarrow> com * post \<Rightarrow> bool" (infix \<open>\<rightarrow>\<close> 55)
+  small_step :: "com * sPost \<Rightarrow> com * sPost \<Rightarrow> bool" (infix \<open>\<rightarrow>\<close> 55)
 where
 Abort: "(ABORT, sOK s) \<rightarrow> (SKIP, sER s)" |
 
@@ -23,8 +23,8 @@ AssignNDEmpty: "(x ::= ND {}, sOK s) \<rightarrow> (ABORT, sOK s)" |
 Seq1:    "(SKIP;;c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2, sOK s)" |
 Seq2:    "(c\<^sub>1,sOK s) \<rightarrow> (c\<^sub>1',s') \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,sOK s) \<rightarrow> (c\<^sub>1';;c\<^sub>2,s')" |
 
-ParL:    "(c\<^sub>1, sOK s) \<rightarrow> (c\<^sub>1', s') \<Longrightarrow> (c\<^sub>1||c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>1'||c\<^sub>2, s')" |
-ParR:    "(c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2', s') \<Longrightarrow> (c\<^sub>1||c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>1||c\<^sub>2', s')" |
+ParL:    "\<lbrakk>c\<^sub>2 \<noteq> SKIP; (c\<^sub>1, sOK s) \<rightarrow> (c\<^sub>1', s')\<rbrakk> \<Longrightarrow> (c\<^sub>1||c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>1'||c\<^sub>2, s')" |
+ParR:    "\<lbrakk>c\<^sub>1 \<noteq> SKIP; (c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2', s')\<rbrakk> \<Longrightarrow> (c\<^sub>1||c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>1||c\<^sub>2', s')" |
 ParSkipR: "(c || SKIP, sOK s) \<rightarrow> (c, sOK s)" |
 ParSkipL: "(SKIP || c, sOK s) \<rightarrow> (c, sOK s)" |
 
@@ -39,7 +39,7 @@ SelectNDN: "\<lbrakk>\<forall>(b, c) \<in> set bs. \<not>bval b s\<rbrakk>  \<Lo
 Er: "c \<noteq> SKIP \<Longrightarrow> (c, sER s) \<rightarrow> (SKIP, sER s)"
 
 abbreviation
-  small_steps :: "com * post \<Rightarrow> com * post \<Rightarrow> bool" (infix \<open>\<rightarrow>*\<close> 55)
+  small_steps :: "com * sPost \<Rightarrow> com * sPost \<Rightarrow> bool" (infix \<open>\<rightarrow>*\<close> 55)
 where "x \<rightarrow>* y == star small_step x y"
 
 subsection\<open>Executability\<close>
@@ -149,112 +149,22 @@ lemma seq_comp_sER:
   apply (metis Seq2 star.step)
    apply (meson Seq2 star.step)
   apply clarsimp 
-  by (smt (verit) Pair_inject post.distinct(1) seq_sER_collapse_star small_step.simps
+  by (smt (verit) Pair_inject sPost.distinct(1) seq_sER_collapse_star small_step.simps
       star.cases)
 
-
-
-
-(*
-text\<open>The following proof corresponds to one on the board where one would
-show chains of \<open>\<rightarrow>\<close> and \<open>\<rightarrow>*\<close> steps.\<close>
-
-lemma big_to_small:
-  "cs \<Down> t \<Longrightarrow> cs \<rightarrow>* (SKIP,t)"
-proof (induction rule: big_step.induct)
-  fix s show "(SKIP,s) \<rightarrow>* (SKIP,s)" by simp
-next
-  fix x a s show "(x ::= a,s) \<rightarrow>* (SKIP, s(x := aval a s))" by auto
-next
-  fix c1 c2 s1 s2 s3
-  assume "(c1,s1) \<rightarrow>* (SKIP,s2)" and "(c2,s2) \<rightarrow>* (SKIP,s3)"
-  thus "(c1;;c2, s1) \<rightarrow>* (SKIP,s3)" by (rule seq_comp)
-next
-  fix s::state and b c0 c1 t
-  assume "bval b s"
-  hence "(IF b THEN c0 ELSE c1,s) \<rightarrow> (c0,s)" by simp
-  moreover assume "(c0,s) \<rightarrow>* (SKIP,t)"
-  ultimately 
-  show "(IF b THEN c0 ELSE c1,s) \<rightarrow>* (SKIP,t)" by (metis star.simps)
-next
-  fix s::state and b c0 c1 t
-  assume "\<not>bval b s"
-  hence "(IF b THEN c0 ELSE c1,s) \<rightarrow> (c1,s)" by simp
-  moreover assume "(c1,s) \<rightarrow>* (SKIP,t)"
-  ultimately 
-  show "(IF b THEN c0 ELSE c1,s) \<rightarrow>* (SKIP,t)" by (metis star.simps)
-next
-  fix b c and s::state
-  assume b: "\<not>bval b s"
-  let ?if = "IF b THEN c;; WHILE b DO c ELSE SKIP"
-  have "(WHILE b DO c,s) \<rightarrow> (?if, s)" by blast
-  moreover have "(?if,s) \<rightarrow> (SKIP, s)" by (simp add: b)
-  ultimately show "(WHILE b DO c,s) \<rightarrow>* (SKIP,s)" by(metis star.refl star.step)
-next
-  fix b c s s' t
-  let ?w  = "WHILE b DO c"
-  let ?if = "IF b THEN c;; ?w ELSE SKIP"
-  assume w: "(?w,s') \<rightarrow>* (SKIP,t)"
-  assume c: "(c,s) \<rightarrow>* (SKIP,s')"
-  assume b: "bval b s"
-  have "(?w,s) \<rightarrow> (?if, s)" by blast
-  moreover have "(?if, s) \<rightarrow> (c;; ?w, s)" by (simp add: b)
-  moreover have "(c;; ?w,s) \<rightarrow>* (SKIP,t)" by(rule seq_comp[OF c w])
-  ultimately show "(WHILE b DO c,s) \<rightarrow>* (SKIP,t)" by (metis star.simps)
-next
-  fix v S  x s
-  assume "v \<in> (S::(int set))"
-  show "(x ::= ND S, s) \<rightarrow>* (SKIP, s(x := v))"
-    by (metis \<open>v \<in> S\<close> small_step.AssignND star_step1)
-next
-  fix b c bs s t
-  assume "(b, c) \<in> set (bs::((bexp \<times> com) list))"
-  assume "bval b s"
-  assume "(c, s) \<Down> t"
-  assume "(c, s) \<rightarrow>* (SKIP, t)"
-  show "(SELECT bs, s) \<rightarrow>* (SKIP, t)"
-    by (metis \<open>(b, c) \<in> set bs\<close> \<open>(c, s) \<Down> t\<close> \<open>(c, s) \<rightarrow>* (SKIP, t)\<close> \<open>bval b s\<close>
-        small_step.SelectND star.simps)
-qed
-*)
-
-fun isSequential :: "com \<Rightarrow> bool" where
-  "isSequential (Par _ _)      = False" |
-  "isSequential (Seq c1 c2)    = (isSequential c1 \<and> isSequential c2)" |
-  "isSequential (If b c1 c2)   = (isSequential c1 \<and> isSequential c2)" |
-  "isSequential (While b c)    = isSequential c" |
-  "isSequential (SelectND xs)  = (\<forall>(b,c) \<in> set xs. isSequential c)" |
-  "isSequential _              = True"
-
 lemma sequential_imp:
-  assumes "isSequential c"
-  and "(c, sOK s) \<rightarrow> (c', sOK s')"
-shows "isSequential c'"
-  sorry
+  "(c, sOK s) \<rightarrow> (c', sOK s') \<Longrightarrow> isSequential c \<Longrightarrow> isSequential c'"
+  apply (induction "(c, sOK s)" "(c', sOK s')" arbitrary: c s c' s' rule: small_step.induct)
+    by fastforce+
 
 lemma small_to_big_single_ok:
   assumes "isSequential c"
   shows "(c, sOK s) \<rightarrow> (SKIP, sOK s') \<Longrightarrow>  (c, s) \<Down> (s', True)"
   apply (cases rule: small_step.cases)
-                  apply blast
-                 apply blast
-                apply blast
-               apply blast
-              apply blast
-             apply blast
-            apply blast
-           apply blast
-          apply blast
-         defer
-         defer
-         apply blast
-        apply blast
-       apply blast
-      apply blast
-     apply blast
-    apply blast
+  apply blast+
   using assms apply auto[1]
-  using assms by auto
+  using assms apply auto[1]
+by blast+
 
 lemma small_to_big_single_er:
   assumes "isSequential c"
@@ -266,7 +176,6 @@ lemma small_to_big_step_ok:
   assumes  "(c, sOK s) \<rightarrow> (c', sOK s')"
       and  "(c', s') \<Down> (t,True)"
       and "isSequential c"
-      and "isSequential c'"
     shows "(c,s) \<Down> (t,True)"
   using assms
   apply (induction "(c, sOK s)" "(c', sOK s')" arbitrary: c c' s s' t  rule: small_step.induct)
@@ -291,7 +200,6 @@ lemma small_to_big_step_er:
   assumes  "(c, sOK s) \<rightarrow> (c', sOK s')"
       and  "(c', s') \<Down> (t,False)"
       and "isSequential c"
-      and "isSequential c'"
     shows "(c,s) \<Down> (t,False)"
   using assms
   apply (induction "(c, sOK s)" "(c', sOK s')" arbitrary: c c' s s' t  rule: small_step.induct)
@@ -299,7 +207,7 @@ lemma small_to_big_step_er:
               apply fast
              apply fast
             apply fast
-            defer
+           defer
            apply force
           apply simp
          apply simp
@@ -316,15 +224,15 @@ lemma small_to_big_step:
   assumes  "(c, sOK s) \<rightarrow> (c', sOK s')"
       and  "(c', s') \<Down> ta"
       and "isSequential c"
-      and "isSequential c'"
     shows "(c,s) \<Down> ta"
-  by (metis (full_types) assms(1,2,3,4) old.prod.exhaust small_to_big_step_er
-      small_to_big_step_ok)
+  using small_to_big_step_ok small_to_big_step_er assms
+by (metis (full_types) old.prod.exhaust)
+
 
 lemma small_to_big_ok:
-  shows "(c, sOK s) \<rightarrow>* (SKIP, sOK t) 
-          \<Longrightarrow> isSequential c 
-          \<Longrightarrow> (c,s) \<Down> (t,True)"
+  "(c, sOK s) \<rightarrow>* (SKIP, sOK t) \<Longrightarrow> 
+   isSequential c \<Longrightarrow> 
+   (c,s) \<Down> (t,True)"
 proof (induction "(c, sOK s)" "(SKIP,sOK t)" arbitrary: c s rule: star.induct)
   case refl
   then show ?case by blast
@@ -339,69 +247,122 @@ next
 qed
 
 lemma instant_er_eq:
-  assumes "(c', sER s) \<rightarrow>* (SKIP, sER t)"
-  shows "t = s"
-proof-
-  show ?thesis 
-    by (smt (verit) Pair_inject assms post.distinct(1) post.inject(2) small_step.simps
-        star.cases)
-qed
+  "(c, sER s) \<rightarrow>* (SKIP, sER t) \<Longrightarrow>
+  isSequential c \<Longrightarrow>
+  t = s"
+by (smt (verit) Pair_inject sPost.distinct(1) sPost.inject(2) small_step.simps
+      star.cases)
 
-lemma pure_er:
-  assumes "(c, sOK x) \<rightarrow> (c', sER t)"
-  and "(c', sER t) \<rightarrow>* (SKIP, sER t)"
-  shows "(c, x) \<Down> (t, False)"
-using assms
+lemma pure_er: "
+  (c, sOK x) \<rightarrow> (c', sER t) \<Longrightarrow> 
+  (c', sER t) \<rightarrow>* (SKIP, sER t) \<Longrightarrow> 
+  isSequential c \<Longrightarrow> 
+  (c, x) \<Down> (t, False)"
   apply (induction "(c, sOK x)" "(c', sER t)" arbitrary: c x c' t rule: small_step.induct)
   apply fast
-  apply blast
-  oops
+  by auto
 
-lemma small_to_big_er:
-  "(c, q) \<rightarrow>* (SKIP, sER t) \<Longrightarrow>
-   (case q of
-      sOK s \<Rightarrow> (c,s) \<Down> (t,False)
-    | sER s \<Rightarrow> s = t)" 
+lemma small_to_big_er_start:"
+  (c, sOK s) \<rightarrow> (c', sER s') \<Longrightarrow> 
+  isSequential c \<Longrightarrow> 
+  (c,s) \<Down> (s', False)"
+using pure_er small_to_big_single_er by blast
+ 
+
+lemma small_to_big_er:"
+  (c, q) \<rightarrow>* (SKIP, sER t) \<Longrightarrow> 
+  isSequential c \<Longrightarrow> 
+  case q of
+    sOK s \<Rightarrow> (c,s) \<Down> (t,False)
+    | sER s \<Rightarrow> s = t"
   apply (induction "(c, q)" "(SKIP,sER t)" arbitrary: c q rule: star.induct)
    apply clarsimp
   apply (case_tac q)
    apply clarsimp
    apply (case_tac b)
     apply clarsimp
-  using small_to_big_step_er apply auto[1]
-   apply clarsimp
-   defer
+  using small_to_big_step_er apply (simp add: sequential_imp)
    apply (case_tac q)
     apply clarsimp
+  using small_to_big_er_start
+  apply (smt (verit) Small_Step.SkipE sPost.distinct(1) prod.inject small_step.cases
+      star.simps)
+   apply clarsimp
+  using small_to_big_er_start
+  apply (smt (verit) Pair_inject Small_Step.SkipE sPost.distinct(1) small_step.cases
+      star.simps)
    apply (cases q)
-    apply clarsimp
-    apply(case_tac b) oops
-     apply (metis instant_er_eq star.step)
-    apply (metis instant_er_eq star.step)
-   apply (smt (verit, del_insts) post.simps(6) instant_er_eq star.step)
-  by (simp add: pure_er)
-  oops
-
-lemma small_to_big_er_start:
-  assumes  "(c, sOK s) \<rightarrow> (c', sER s')"
-  shows "(c,s) \<Down> (s', False)"
-  using assms
-proof-
-  have h0: "c' \<noteq> SKIP \<Longrightarrow> (c,s) \<Down> (s', False)"
-    by (metis Er assms post.simps(5) small_to_big_er star.step star_ER)
-  oops
+     apply clarsimp
+  apply (metis instant_er_eq star.step)
+  apply clarsimp
+by (metis instant_er_eq star.step)
 
 
 
+text\<open>The following proof corresponds to one on the board where one would
+show chains of \<open>\<rightarrow>\<close> and \<open>\<rightarrow>*\<close> steps.\<close>
+
+lemma while_true_step:
+  assumes hb: "bval b s\<^sub>1"
+  assumes hbig1: "(c, s\<^sub>1) \<Down> (s\<^sub>2, True)"
+  assumes hsmall1: "(c, sOK s\<^sub>1) \<rightarrow>* (SKIP, sOK s\<^sub>2)"
+  assumes hbig2: "(WHILE b DO c, s\<^sub>2) \<Down> (t, True)"
+  assumes hsmall2: "(WHILE b DO c, sOK s\<^sub>2) \<rightarrow>* (SKIP, sOK t)"
+  assumes hseq: "isSequential c"
+  shows "(WHILE b DO c, sOK s\<^sub>1) \<rightarrow>* (SKIP, sOK t)" 
+by (meson While hb hsmall1 hsmall2 seq_comp_sOK small_step.IfTrue star.step)
+
+lemma big_to_small_ok:
+  "(c, s) \<Down> (t,True) \<Longrightarrow> isSequential c \<Longrightarrow> (c, sOK s) \<rightarrow>* (SKIP, sOK t)"
+  apply (induction "(c, s)" "(t,True)"  arbitrary: c s t rule: big_step.induct)
+  apply fastforce
+              apply fastforce
+             apply fastforce
+            apply fastforce
+           apply fastforce
+          apply (metis isSequential.simps(2) seq_comp_sOK)
+         apply fastforce
+        apply (meson isSequential.simps(3) small_step.IfTrue star.step)
+       apply (metis isSequential.simps(3) small_step.IfFalse star.step)
+      apply (meson sequential_imp small_step.SelectND star.step)
+     apply blast
+    apply (metis While small_step.IfFalse star.simps)
+   defer
+   apply blast
+  apply clarsimp
+by (metis while_true_step)
+
+lemma big_to_small_er:
+  "(c, s) \<Down> (t,False) \<Longrightarrow> isSequential c \<Longrightarrow> (c, sOK s) \<rightarrow>* (SKIP, sER t)"
+  apply (induction "(c, s)" "(t,False)"  arbitrary: c s t rule: big_step.induct)
+  apply fastforce
+              apply fastforce
+             apply fastforce
+            apply fastforce
+           apply (metis small_step.Abort small_step.AssignNDEmpty star.simps)
+          apply (metis isSequential.simps(2) seq_comp_sOK big_to_small_ok)
+         apply (metis isSequential.simps(2) seq_comp_sER)
+        apply (metis isSequential.simps(3) small_step.IfTrue star.step)
+       apply (meson isSequential.simps(3) small_step.IfFalse star.step)
+      apply (metis sequential_imp small_step.SelectND star.step)
+     apply (metis SelectNDN small_step.Abort star.simps)
+    apply simp
+  apply (meson While big_to_small_ok isSequential.simps(4) seq_comp_sOK small_step.IfTrue
+      star.step)
+by (metis While isSequential.simps(4) seq_comp_sER small_step.IfTrue star.simps)
+         
 
 text \<open>
   Finally, the equivalence theorem:
 \<close>
-(*
+
 theorem big_iff_small:
-  "cs \<Down> t = cs \<rightarrow>* (SKIP,t)"
-by(metis big_to_small small_to_big)
-*)
+  assumes "isSequential c"
+  shows "(c,s) \<Down> (t, True) = (c,sOK s) \<rightarrow>* (SKIP,sOK t)"
+  and "(c,s) \<Down> (t, False) = (c,sOK s) \<rightarrow>* (SKIP,sER t)"
+  using assms big_to_small_ok small_to_big_ok apply blast
+by (metis assms big_to_small_er sPost.simps(5) small_to_big_er)
+
 
 subsection "Final configurations and infinite reductions"
 
@@ -427,7 +388,7 @@ apply(simp add: final_def)
   apply(induction c) by blast+
 
 lemma finalD: "final (c,s) \<Longrightarrow> c = SKIP"
-  by (metis finalD_er finalD_ok post.exhaust)
+  by (metis finalD_er finalD_ok sPost.exhaust)
 
 lemma final_iff_SKIP: "final (c,s) = (c = SKIP)"
 by (metis SkipE finalD final_def)

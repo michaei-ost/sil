@@ -85,8 +85,8 @@ lemma wp_single_SelectND_ER[simp]:  "wp_single (SELECT S) c' (ER Q) = (\<lambda>
 lemma wp_single_Par_OK: "wp_single (c\<^sub>1 || c\<^sub>2) c' (OK Q)= (\<lambda>s. 
       (c\<^sub>1 = SKIP \<and> c' = c\<^sub>2 \<and> Q s)
     \<or> (c\<^sub>2 = SKIP \<and> c' = c\<^sub>1 \<and> Q s)
-    \<or> (\<exists>c\<^sub>1'. c' = c\<^sub>1'||c\<^sub>2 \<and> wp_single c\<^sub>1 c\<^sub>1' (OK Q) s) 
-    \<or> (\<exists>c\<^sub>2'. c' = c\<^sub>1||c\<^sub>2' \<and> wp_single c\<^sub>2 c\<^sub>2' (OK Q) s))" 
+    \<or> (c\<^sub>2 \<noteq> SKIP \<and> (\<exists>c\<^sub>1'. c' = c\<^sub>1'||c\<^sub>2 \<and> wp_single c\<^sub>1 c\<^sub>1' (OK Q) s)) 
+    \<or> (c\<^sub>1 \<noteq> SKIP \<and> (\<exists>c\<^sub>2'. c' = c\<^sub>1||c\<^sub>2' \<and> wp_single c\<^sub>2 c\<^sub>2' (OK Q) s)))" 
   apply (cases c\<^sub>1)
   unfolding wp_single_def apply fastforce
   unfolding wp_single_def apply fastforce
@@ -107,8 +107,8 @@ lemma wp_single_Par_OK: "wp_single (c\<^sub>1 || c\<^sub>2) c' (OK Q)= (\<lambda
   done
 
 lemma wp_single_Par_ER: "wp_single (c\<^sub>1 || c\<^sub>2) c' (ER Q)= (\<lambda>s. 
-    (\<exists>c\<^sub>1'. c' = c\<^sub>1'||c\<^sub>2 \<and> wp_single c\<^sub>1 c\<^sub>1' (ER Q) s) 
-    \<or> (\<exists>c\<^sub>2'. c' = c\<^sub>1||c\<^sub>2' \<and> wp_single c\<^sub>2 c\<^sub>2' (ER Q) s))" 
+    (c\<^sub>2 \<noteq> SKIP \<and> (\<exists>c\<^sub>1'. c' = c\<^sub>1'||c\<^sub>2 \<and> wp_single c\<^sub>1 c\<^sub>1' (ER Q) s)) 
+    \<or> (c\<^sub>1 \<noteq> SKIP \<and> (\<exists>c\<^sub>2'. c' = c\<^sub>1||c\<^sub>2' \<and> wp_single c\<^sub>2 c\<^sub>2' (ER Q) s)))" 
   apply (cases c\<^sub>1)
   unfolding wp_single_def apply fastforce
   unfolding wp_single_def apply fastforce

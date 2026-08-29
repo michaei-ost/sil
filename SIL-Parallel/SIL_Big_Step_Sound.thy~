@@ -1,0 +1,81 @@
+subsection \<open>Soundness and Completeness\<close>
+
+theory SIL_Big_Step_Sound
+imports SIL_Big_Step
+begin
+
+subsubsection "Soundness"
+
+lemma sil_while_sound_ok:
+assumes "\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>OK (Q n)\<rangle>"
+      and "\<And>s. Q 0 s \<Longrightarrow> \<not> bval b s"
+      and "\<And>n s. Q (Suc n) s \<Longrightarrow>  bval b s"
+      and "Q n s"
+      and "\<And>n. \<forall>s. Q (Suc n) s \<longrightarrow> (\<exists>t. (c, s) \<Down> (t,True) \<and> Q n t)"
+    shows "(\<exists>t. (WHILE b DO c, s) \<Down> (t,True) \<and> Q 0 t)"
+  using assms
+  apply (induct n arbitrary: s)
+   apply fastforce
+  by blast
+
+lemma sil_while_sound_er:
+  assumes "\<And>n. \<turnstile> \<langle>Q (Suc (Suc n))\<rangle> c \<langle>OK (Q (Suc n))\<rangle>"
+  and "\<turnstile> \<langle>Q 1\<rangle> c \<langle>ER (Q 0)\<rangle>"
+  and "\<And>s. Q 1 s \<Longrightarrow> (\<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t)"
+  and "\<And>n s. Q (Suc n) s \<Longrightarrow> bval b s"
+  and "Q (Suc m) s"
+  and "\<And>n. \<forall>s. Q (Suc (Suc n)) s \<longrightarrow> (\<exists>t. (c, s) \<Down> (t, True) \<and> Q (Suc n) t)"
+  shows
+    "\<exists>t. (WHILE b DO c, s) \<Down> (t, False) \<and> Q 0 t"
+  using assms
+  apply (induct m arbitrary: s)
+  apply fastforce
+  apply blast
+  done
+
+lemma disjunction_sound:
+  assumes hP: "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
+      and hR: "\<Turnstile> \<langle>R\<rangle> c \<langle>Q\<rangle>"
+  shows
+    "case Q of
+       OK x \<Rightarrow>
+         \<forall>s. P s \<or> R s \<longrightarrow>
+             (\<exists>t. (c,s) \<Down> (t,True) \<and> x t)
+     | ER x \<Rightarrow>
+         \<forall>s. P s \<or> R s \<longrightarrow>
+             (\<exists>t. (c,s) \<Down> (t,False) \<and> x t)" 
+  apply(cases Q)
+  using SIL_valid_def hP hR apply auto[1]
+using SIL_valid_def hP hR by force
+
+lemma sil_sound: 
+  "\<turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>"
+  unfolding SIL_valid_def
+  apply (induction rule: SIL.induct; blast?)
+  apply fastforce
+  apply fastforce
+  apply fastforce
+  apply fastforce
+  apply fastforce
+  apply (case_tac R)
+  apply fastforce
+  apply fastforce
+  using IfTrue apply fastforce
+  apply (case_tac R)
+  apply clarsimp
+  apply blast
+  apply clarsimp
+  apply blast
+  apply (case_tac Q)
+  apply fastforce
+  apply fastforce
+  apply fastforce defer defer
+  apply fastforce
+  apply fastforce
+     apply (metis (lifting) ext post.case_distrib)
+  apply (simp add: SIL_valid_def disjunction_sound)
+  apply clarsimp 
+  using sil_while_sound_ok apply auto[1]
+  apply clarsimp using sil_while_sound_er by auto
+
+end

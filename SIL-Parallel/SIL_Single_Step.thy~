@@ -52,8 +52,7 @@ sSeqSkip: "\<turnstile> \<langle>P\<rangle> SKIP;;c\<^sub>2 \<leadsto> c\<^sub>2
 sIfTrue: "\<forall>s. P s \<longrightarrow> bval b s \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c\<^sub>1  \<langle>OK P\<rangle>"  |
 sIfFalse: "\<forall>s. P s \<longrightarrow> \<not>bval b s \<Longrightarrow> \<turnstile> \<langle>P\<rangle> IF b THEN c\<^sub>1 ELSE c\<^sub>2 \<leadsto> c\<^sub>2  \<langle>OK P\<rangle>"  |
 
-sSelectND: "\<lbrakk>(b,c) \<in> set bs; bval b s\<rbrakk>
-   \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. P s \<and> bval b s\<rangle> SELECT bs \<leadsto> c \<langle>OK P\<rangle>" |
+sSelectND: "\<turnstile> \<langle>\<lambda>s. \<exists>b. (b,c) \<in> set bs \<and> P s \<and> bval b s\<rangle> SELECT bs \<leadsto> c \<langle>OK P\<rangle>" |
 
 sSelectNDNP: (* No Path *)
 "\<lbrakk>\<forall>s. P s \<longrightarrow> (\<forall>(b, c) \<in> set bs. \<not>bval b s)\<rbrakk>
@@ -67,7 +66,8 @@ sConseqOK: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<la
 sConseqER: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<leadsto> c' \<langle>ER Q'\<rangle>" |
 
-sSubstituteCom: "\<lbrakk>\<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>Q\<rangle>\<rbrakk> \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. P s \<and> c' = c\<^sub>1'\<rangle> c \<leadsto> c\<^sub>1' \<langle>Q\<rangle>" |
+sSubstituteCom: "\<lbrakk>\<turnstile> \<langle>P\<rangle> c \<leadsto> c\<^sub>1 \<langle>Q\<rangle>; \<forall>s. P s \<longrightarrow> c' = c \<and> c\<^sub>1' = c\<^sub>1\<rbrakk> 
+\<Longrightarrow> \<turnstile> \<langle>P\<rangle> c' \<leadsto> c\<^sub>1' \<langle>Q\<rangle>" |
 
 sFalsePre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<leadsto> c' \<langle>Q\<rangle>" |
 

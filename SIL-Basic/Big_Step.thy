@@ -230,7 +230,6 @@ theorem big_step_determ:
      apply fastforce
     apply fastforce
     apply fastforce
-  apply fastforce
   by (metis WhileE fst_conv nd_free.simps(7))
 
 text \<open>

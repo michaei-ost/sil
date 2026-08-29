@@ -81,16 +81,16 @@ tFalsePre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<langle>Q\<rangl
 tDisjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<langle>Q\<rangle> \<rbrakk> 
         \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<langle>Q\<rangle>" |
 
-tParallelL: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>OK P'\<rangle>; \<turnstile> \<langle>P'\<rangle> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
+tParallelL: "\<lbrakk>c\<^sub>2 \<noteq> SKIP; \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>OK P'\<rangle>; \<turnstile> \<langle>P'\<rangle> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<langle>Q\<rangle>" |
 
-tParallelR: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>2 \<leadsto> c\<^sub>2'  \<langle>OK P'\<rangle>; \<turnstile> \<langle>P'\<rangle> c\<^sub>1||c\<^sub>2' \<langle>Q\<rangle> \<rbrakk>
+tParallelR: "\<lbrakk>c\<^sub>1 \<noteq> SKIP; \<turnstile> \<langle>P\<rangle> c\<^sub>2 \<leadsto> c\<^sub>2'  \<langle>OK P'\<rangle>; \<turnstile> \<langle>P'\<rangle> c\<^sub>1||c\<^sub>2' \<langle>Q\<rangle> \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<langle>Q\<rangle>" |
 
-tParallelERL: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>ER Q\<rangle>\<rbrakk>
+tParallelERL: "\<lbrakk>c\<^sub>2 \<noteq> SKIP; \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>ER Q\<rangle>\<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<langle>ER Q\<rangle>" |
 
-tParallelERR: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>2 \<leadsto> c\<^sub>2'  \<langle>ER Q\<rangle>\<rbrakk>
+tParallelERR: "\<lbrakk>c\<^sub>1 \<noteq> SKIP;  \<turnstile> \<langle>P\<rangle> c\<^sub>2 \<leadsto> c\<^sub>2'  \<langle>ER Q\<rangle>\<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<langle>ER Q\<rangle>" |
 
 tParallelSkipL: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>2  \<langle>Q\<rangle> \<rbrakk>

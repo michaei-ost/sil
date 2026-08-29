@@ -4,22 +4,7 @@ section "SIL Logic"
 
 subsection "SIL Logic for Partial Correctness"
 
-theory SIL imports Big_Step begin
-
-type_synonym assn = "state \<Rightarrow> bool"
-
-datatype post =
-    OK assn
-    | ER assn
-
-fun post_assn :: "post \<Rightarrow> assn" where
-  "post_assn (OK Q) = Q"
-| "post_assn (ER Q) = Q"
-
-fun post_ok :: "post \<Rightarrow> bool" where
-  "post_ok (OK Q) = True"
-| "post_ok (ER Q) = False"
-
+theory SIL_Big_Step imports Big_Step begin
 
 definition SIL_valid ::
   "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)

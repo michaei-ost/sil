@@ -1,0 +1,324 @@
+theory SIL_Star_WP
+
+imports SIL_Star SIL_Big_Step_WP SIL_Single_Step_WP
+begin
+
+definition wp :: "com \<Rightarrow> post \<Rightarrow> assn" where
+  "wp c R = (\<lambda>s. case R of
+      OK Q \<Rightarrow> (\<exists>s'. (c,sOK s) \<rightarrow>* (SKIP,sOK s') \<and> Q s')
+    | ER Q \<Rightarrow> (\<exists>s'. (c,sOK s) \<rightarrow>* (SKIP,sER s') \<and> Q s'))"
+
+lemma one_step:
+  assumes "c \<noteq> SKIP"
+  and "(c, sOK s) \<rightarrow>* (SKIP, s'')"
+  shows   "\<exists>c' s'. (c, sOK s) \<rightarrow> (c',s') \<and> (c',s') \<rightarrow>* (SKIP, s'')"
+  using assms using star.cases by fastforce
+
+lemma one_step_post:
+  assumes "c \<noteq> SKIP"
+  and "(c, sOK s) \<rightarrow>* (SKIP, s'') \<and> Q s''"
+  shows   "\<exists>c' s'. (c, sOK s) \<rightarrow> (c',s') \<and> (c',s') \<rightarrow>* (SKIP, s'') \<and> Q s''"
+using assms using star.cases by fastforce
+
+lemma multi_step:
+  assumes "c \<noteq> SKIP"
+  and "(c, sOK s) \<rightarrow>* (SKIP, s'')"
+  shows   "\<exists>c' s'. (c, sOK s) \<rightarrow>* (c',s') \<and> (c',s') \<rightarrow>* (SKIP, s'')"
+  using assms using star.cases by fastforce
+
+lemma multi_step_post:
+  assumes "c \<noteq> SKIP"
+  and "(c, sOK s) \<rightarrow>* (SKIP, s'') \<and> Q s''"
+  shows   "\<exists>c' s'. (c, sOK s) \<rightarrow>* (c',s') \<and> (c',s') \<rightarrow>* (SKIP, s'') \<and> Q s''"
+  using assms using star.cases by fastforce
+
+lemma par_step_unfold_ok:
+  assumes "c\<^sub>1 \<noteq> SKIP"
+  and "c\<^sub>2 \<noteq> SKIP"
+  and "(\<exists>s'. (c\<^sub>1 || c\<^sub>2, sOK s) \<rightarrow>* (SKIP, sOK s') \<and> Q s')"
+  shows "((\<exists>c\<^sub>1' s'. (c\<^sub>1, sOK s) \<rightarrow> (c\<^sub>1', sOK s') \<and> (\<exists>s'a. (c\<^sub>1' || c\<^sub>2, sOK s') \<rightarrow>* (SKIP, sOK s'a) \<and> Q s'a))
+        \<or> (\<exists>c\<^sub>2' s'. (c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2', sOK s') \<and> (\<exists>s'a. (c\<^sub>1 || c\<^sub>2', sOK s') \<rightarrow>* (SKIP, sOK s'a) \<and> Q s'a)))"
+  using ParE assms ok_reachable_from_ok by (smt (verit, best) Pair_inject com.distinct(15)
+      sPost.distinct(1) star.simps)
+
+lemma par_step_unfold_er:
+  fixes c\<^sub>1 c\<^sub>2 :: com and Q :: assn and s :: state
+  assumes hc1: "c\<^sub>1 \<noteq> SKIP"
+  assumes hc2: "c\<^sub>2 \<noteq> SKIP"
+  shows "(\<exists>s'. (c\<^sub>1 || c\<^sub>2, sOK s) \<rightarrow>* (SKIP, sER s') \<and> Q s')
+       = ((\<exists>c\<^sub>1' s'. (c\<^sub>1, sOK s) \<rightarrow> (c\<^sub>1', sOK s') \<and>
+                     (\<exists>s'a. (c\<^sub>1' || c\<^sub>2, sOK s') \<rightarrow>* (SKIP, sER s'a) \<and> Q s'a))
+        \<or> (\<exists>c\<^sub>2' s'. (c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2', sOK s') \<and>
+                     (\<exists>s'a. (c\<^sub>1 || c\<^sub>2', sOK s') \<rightarrow>* (SKIP, sER s'a) \<and> Q s'a))
+        \<or> (\<exists>c\<^sub>1' s'. (c\<^sub>1, sOK s) \<rightarrow> (c\<^sub>1', sER s') \<and> Q s')
+        \<or> (\<exists>c\<^sub>2' s'. (c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2', sER s') \<and> Q s'))"
+  apply (intro iffI)
+   apply clarsimp
+  apply (smt (verit) ParE Small_Step.SkipE hc1 hc2 old.prod.inject sPost.distinct(1)
+      star.simps)
+  apply (elim disjE exE conjE)
+     apply (metis ParL hc2 star.simps)
+    apply (meson ParR hc1 star.step)
+   apply (metis Er ParL hc2 star.simps)
+  apply (metis Er ParR hc1 star.simps)
+done
+
+lemma par_skip_left_run_ok:
+  assumes "\<exists>s'. (SKIP || c\<^sub>2, sOK x) \<rightarrow>* (SKIP, sOK s') \<and> Q s'"
+  shows   "\<exists>s'. (c\<^sub>2, sOK x) \<rightarrow>* (SKIP, sOK s') \<and> Q s'"
+  using one_step_post ParE assms by blast
+
+
+lemma par_skip_left_run_er:
+  assumes "\<exists>s'. (SKIP || c\<^sub>2, sOK x) \<rightarrow>* (SKIP, sER s') \<and> Q s'"
+  shows   "\<exists>s'. (c\<^sub>2, sOK x) \<rightarrow>* (SKIP, sER s') \<and> Q s'"
+  using one_step_post ParE assms by blast
+
+lemma par_skip_right_run_ok:
+  assumes "\<exists>s'. (c\<^sub>1 || SKIP, sOK x) \<rightarrow>* (SKIP, sOK s') \<and> Q s'"
+  shows   "\<exists>s'. (c\<^sub>1, sOK x) \<rightarrow>* (SKIP, sOK s') \<and> Q s'"
+  using one_step_post ParE assms by blast
+
+lemma par_skip_right_run_er:
+  assumes "\<exists>s'. (c\<^sub>1 || SKIP, sOK x) \<rightarrow>* (SKIP, sER s') \<and> Q s'"
+  shows   "\<exists>s'. (c\<^sub>1 , sOK x) \<rightarrow>* (SKIP, sER s') \<and> Q s'"
+  using one_step_post ParE assms by blast
+
+lemma seq_decomp_er_from_c2:
+  assumes h1: "(c\<^sub>1;;c\<^sub>2, sOK s) \<rightarrow>* (SKIP, sER s')"
+  assumes h2: "Q s'"
+  assumes h3: "\<forall>s'. (c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sER s') \<longrightarrow> \<not> Q s'"
+  shows "\<exists>u. (c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sOK u) \<and> (\<exists>s'a. (c\<^sub>2, sOK u) \<rightarrow>* (SKIP, sER s'a) \<and> Q s'a)"
+  using assms  apply (induction "(c\<^sub>1;;c\<^sub>2, sOK s)" "(SKIP, sER s')" arbitrary: c\<^sub>1 c\<^sub>2 s s' rule: star.induct)
+  apply clarsimp
+proof-
+  fix a b c\<^sub>1 c\<^sub>2 s s'
+  assume "(c\<^sub>1;; c\<^sub>2, sOK s) \<rightarrow> (a, b)"
+  assume "(a, b) \<rightarrow>* (SKIP, sER s')"
+  
+ (* Step 1: derive the side-fact the IH needs, for c\<^sub>1'' instead of c\<^sub>1 *)
+  have hneg'': "\<forall>t. y \<rightarrow>* (SKIP, sER t) \<longrightarrow> \<not> Q t"
+  proof (intro allI impI)
+    fix t
+    assume "y \<rightarrow>* (SKIP, sER t)"
+    then have "(c\<^sub>1 ;; c\<^sub>2, sOK s) \<rightarrow> y" sledgehammer
+    then have "(c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sER t)"
+      using step sledgehammer
+    then show "\<not> Q t"
+      using hneg by blast
+  qed
+
+  (* Step 2: instantiate the induction hypothesis *)
+  from IH[of c\<^sub>1'' c\<^sub>2 s'', OF refl hneg''] and rest
+  obtain u where
+    run1: "(c\<^sub>1'', sOK s'') \<rightarrow>* (SKIP, sOK u)" and
+    run2: "\<exists>s'a. (c\<^sub>2, sOK u) \<rightarrow>* (SKIP, sER s'a) \<and> Q s'a"
+    by blast
+
+  (* Step 3: prepend the original step onto run1 *)
+  have "(c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sOK u)"
+    using step run1 by (rule star.step)
+
+  with run2 show ?thesis by blast
+qed
+
+
+lemma If_OK_unfold:
+  shows "(bval b s \<longrightarrow>
+            ((\<exists>s'. (IF b THEN c\<^sub>1 ELSE c\<^sub>2, sOK s) \<rightarrow>* (SKIP, sOK s') \<and> Q s')
+           = (\<exists>s'. (c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sOK s') \<and> Q s')))
+       \<and> (\<not> bval b s \<longrightarrow>
+            ((\<exists>s'. (IF b THEN c\<^sub>1 ELSE c\<^sub>2, sOK s) \<rightarrow>* (SKIP, sOK s') \<and> Q s')
+           = (\<exists>s'. (c\<^sub>2, sOK s) \<rightarrow>* (SKIP, sOK s') \<and> Q s')))"
+  apply (intro conjI impI)
+  using IfTrue one_step apply (smt (verit, best) Small_Step.IfE com.distinct(9) sPost.distinct(1)
+      sPost.inject(1) star.step)
+  using IfFalse one_step
+by (smt (verit, del_insts) Small_Step.IfE com.distinct(9) sPost.distinct(1) sPost.inject(1)
+      star.simps) 
+
+ (*
+ParL:    "(c\<^sub>1, sOK s) \<rightarrow> (c\<^sub>1', s') \<Longrightarrow> (c\<^sub>1||c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>1'||c\<^sub>2, s')" |
+ParR:    "(c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2', s') \<Longrightarrow> (c\<^sub>1||c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>1||c\<^sub>2', s')" |
+ParSkipR: "(c || SKIP, sOK s) \<rightarrow> (c, sOK s)" |
+ParSkipL: "(SKIP || c, sOK s) \<rightarrow> (c, sOK s)" |
+*)
+
+
+lemma big_iff_small_wp:
+  assumes "isSequential c"
+  shows "wp c Q = wp_big_step c Q"
+  unfolding wp_def wp_big_step_def
+  apply(cases Q)
+  using big_iff_small assms by fastforce+
+
+lemma wp_SKIP_OK [simp]: 
+  "wp SKIP (OK Q) = Q"
+  by (simp add: big_iff_small_wp)
+
+lemma wp_SKIP_ER [simp]: 
+  "wp SKIP (ER Q) = (\<lambda>s. False)"
+  by (simp add: big_iff_small_wp)
+
+lemma wp_ABORT_OK [simp]: 
+  "wp ABORT (OK Q) = (\<lambda>s. False)"
+  by (simp add: big_iff_small_wp)
+
+lemma wp_ABORT_ER [simp]: 
+  "wp ABORT (ER Q) = Q"
+  by (simp add: big_iff_small_wp)
+
+lemma wp_Assign_OK [simp]: 
+  "wp (x::=a) (OK Q) = (\<lambda>s. Q (s(x := aval a s)))"
+  by (simp add: big_iff_small_wp)
+
+lemma wp_Assign_ER [simp]: 
+  "wp (x::=a) (ER Q) = (\<lambda>s. False)"
+by (simp add: big_iff_small_wp)
+
+lemma wp_AssignND_NonEmpty_OK [simp]: 
+  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := aval v s))))"
+by (simp add: big_iff_small_wp)
+
+lemma wp_AssignND_NonEmpty_ER [simp]: 
+  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (ER Q) = (\<lambda>s. False)"
+by (simp add: big_iff_small_wp)
+
+lemma wp_AssignND_Empty_ER [simp]: 
+  "vals = {} \<Longrightarrow> wp (x::= ND vals) (ER Q) = Q"
+by (simp add: big_iff_small_wp)
+
+lemma wp_AssignND_Empty_OK [simp]: 
+  "vals = {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. False)"
+  by (simp add: big_iff_small_wp)
+
+lemma wp_Par_OK[simp]:
+  "c\<^sub>1 \<noteq> SKIP \<and> c\<^sub>2 \<noteq> SKIP \<Longrightarrow> wp (c\<^sub>1 || c\<^sub>2) (OK Q) = (\<lambda>s. 
+    (\<exists>c\<^sub>1'. wp_single c\<^sub>1 c\<^sub>1'  (OK (wp (c\<^sub>1'||c\<^sub>2) (OK Q))) s)
+    \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2'  (OK (wp (c\<^sub>1||c\<^sub>2') (OK Q))) s))" 
+  apply (rule ext)
+  unfolding wp_def wp_single_def
+   apply clarsimp
+  apply(rule iffI)
+  using par_step_unfold_ok apply simp
+by (meson ParL ParR star.step)
+
+
+lemma wp_Par_ER[simp]:
+  "c\<^sub>1 \<noteq> SKIP \<and> c\<^sub>2 \<noteq> SKIP \<Longrightarrow> wp (c\<^sub>1 || c\<^sub>2) (ER Q) = (\<lambda>s. 
+    (\<exists>c\<^sub>1'. wp_single c\<^sub>1 c\<^sub>1'  (OK (wp (c\<^sub>1'||c\<^sub>2) (ER Q))) s)
+    \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2'  (OK (wp (c\<^sub>1||c\<^sub>2') (ER Q))) s)
+    \<or> (\<exists>c\<^sub>1'. wp_single c\<^sub>1 c\<^sub>1'  (ER Q) s)
+    \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2'  (ER Q) s))"
+  apply (rule ext)
+  unfolding wp_def wp_single_def
+  apply clarsimp
+using par_step_unfold_er by auto
+
+lemma wp_Par_SKIP_L[simp]:
+  " wp (SKIP || c\<^sub>2) Q = wp c\<^sub>2 Q"
+  apply (rule ext)
+  unfolding wp_def
+  apply(cases Q)
+  apply clarsimp
+  apply(rule iffI)
+   defer
+    apply (meson ParSkipL star.step)
+   apply clarsimp
+   apply (metis ParSkipL par_skip_left_run_er star.step)
+using par_skip_left_run_ok by blast
+
+lemma wp_Par_SKIP_R[simp]:
+  " wp (c\<^sub>1 || SKIP) Q = wp c\<^sub>1 Q"
+  apply (rule ext)
+  unfolding wp_def
+  apply(cases Q)
+  apply clarsimp
+  apply(rule iffI)
+    defer
+    apply (meson ParSkipR star.step)
+   apply clarsimp
+  apply (metis ParSkipR par_skip_right_run_er star.step)
+using par_skip_right_run_ok by blast
+
+lemma wp_SelectND_OK[simp]: 
+  "wp (SelectND S) (OK Q) = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (OK Q) s))"
+  apply (rule ext)
+  apply (simp add: wp_def)
+  apply (rule iffI)
+   apply clarsimp
+  apply (smt (verit, ccfv_threshold) Big_Step.AbortE Pair_inject Small_Step.SelectNDE case_prodI
+      com.distinct(11) isSequential.simps(7) one_step_post sPost.inject(1) small_step.Abort small_to_big_er
+      small_to_big_ok star.step star_sER)
+  by (smt (verit, del_insts) case_prodE small_step.SelectND star_step1 star_trans)
+
+lemma wp_SelectND_ER[simp]: 
+  "wp (SelectND S) (ER Q) = 
+    (\<lambda>s. (\<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (ER Q) s)) 
+                \<or> ((\<forall>(b,c) \<in> set S. \<not>bval b s) \<and> Q s))"
+  apply (rule ext)
+  apply (simp add: wp_def)
+  apply (rule iffI)
+   apply clarsimp
+  apply (smt (verit, best) Small_Step.AbortE Small_Step.SelectNDE case_prodI2 instant_er_eq
+      isSequential.simps(6) old.prod.inject post_state.simps(1) sPost.distinct(1) split_cong
+      star.simps)
+  by (smt (verit, ccfv_threshold) Small_Step.SelectNDE case_prodE case_prod_conv com.distinct(11)
+      final_def final_iff_SKIP post_state.simps(1) sPost.distinct(1) small_step.Abort small_step.SelectND
+      star.simps)
+
+lemma wp_Seq_OK[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) (OK Q) = wp c\<^sub>1 (OK (wp c\<^sub>2 (OK Q)))"
+  apply (rule ext)
+  apply (simp add: wp_def)
+  apply (rule iffI)
+  defer
+   apply clarsimp
+   apply (metis seq_comp_sOK)
+by (metis ok_reachable_from_ok seq_decomp)
+
+lemma wp_Seq_ER[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) (ER Q) = (\<lambda>s. wp c\<^sub>1 (OK (wp c\<^sub>2 (ER Q))) s \<or> wp c\<^sub>1 (ER Q) s )"
+  apply (rule ext)
+  apply (simp add: wp_def)
+  apply (rule iffI)
+   apply clarsimp
+   defer
+   apply (metis seq_comp_sER seq_comp_sOK)
+using seq_decomp_er_from_c2 by auto
+
+lemma wp_If[simp]:
+ "wp (IF b THEN c\<^sub>1 ELSE c\<^sub>2) Q = (\<lambda>s. if bval b s then wp c\<^sub>1 Q s else wp c\<^sub>2 Q s)"
+ apply (rule ext)
+  apply (simp add: wp_def)
+  apply (cases Q)
+   apply clarsimp
+   defer
+  apply (smt (verit) Small_Step.IfE com.distinct(9) finalD_ok final_def old.prod.inject post.simps(6)
+      sPost.distinct(1) sPost.inject(1) star.cases star.step)
+using If_OK_unfold by auto
+
+lemma wp_While_If:
+ "wp (WHILE b DO c) Q = wp (IF b THEN c;;WHILE b DO c ELSE SKIP) Q "
+  apply (rule ext)
+  apply (simp add: wp_def)
+  apply (cases Q)
+   apply clarsimp
+  apply (metis (full_types) Small_Step.WhileE While com.distinct(13) final_iff_SKIP sPost.distinct(1)
+      star.cases star.step)
+  by (smt (verit, best) Small_Step.WhileE While finalD_ok final_iff_SKIP post.simps(6) sPost.distinct(1)
+      star.cases star.step)
+
+lemma wp_While_True[simp]: 
+  "bval b s \<Longrightarrow> wp (WHILE b DO c) Q s = wp (c;; WHILE b DO c) Q s"
+  by(fastforce simp: wp_While_If)
+
+lemma wp_While_False_OK[simp]: 
+  "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) (OK Q) s  = Q s"
+  by (simp add: wp_While_If)
+
+lemma wp_While_False_ER[simp]: 
+  "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) (ER Q) s  = False"
+  by (simp add: wp_While_If)
+
+end

@@ -20,23 +20,5 @@ fun isSequential :: "com \<Rightarrow> bool" where
   "isSequential (SelectND xs)  = (\<forall>(b,c) \<in> set xs. isSequential c)" |
   "isSequential _              = True"
 
-type_synonym assn = "state \<Rightarrow> bool"
-
-datatype post =
-    OK assn
-    | ER assn
-
-fun post_assn :: "post \<Rightarrow> assn" where
-  "post_assn (OK Q) = Q"
-| "post_assn (ER Q) = Q"
-
-fun post_ok :: "post \<Rightarrow> bool" where
-  "post_ok (OK Q) = True"
-| "post_ok (ER Q) = False"
-
-fun apply_post :: "post \<Rightarrow> state \<times> bool \<Rightarrow> bool" where
-  "apply_post (OK Q) (s,b) = (Q s \<and> b)" 
-| "apply_post (ER Q) (s,b) = (Q s \<and> \<not>b)" 
-
 
 end

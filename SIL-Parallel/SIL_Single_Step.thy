@@ -6,20 +6,6 @@ subsection "SIL Logic for Partial Correctness"
 
 theory SIL_Single_Step imports Small_Step begin
 
-type_synonym assn = "state \<Rightarrow> bool"
-
-datatype post =
-    OK assn
-    | ER assn
-
-fun post_assn :: "post \<Rightarrow> assn" where
-  "post_assn (OK Q) = Q"
-| "post_assn (ER Q) = Q"
-
-fun post_ok :: "post \<Rightarrow> bool" where
-  "post_ok (OK Q) = True"
-| "post_ok (ER Q) = False"
-
 definition SIL_Single_Step_Valid ::
   "assn \<Rightarrow> com \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/ \<leadsto> (_)/ \<langle>(1_)\<rangle>)\<close> 50)
 where
@@ -74,10 +60,10 @@ sFalsePre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<leadsto> c' \<l
 sDisjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<leadsto> c' \<langle>Q\<rangle> \<rbrakk> 
         \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<leadsto> c' \<langle>Q\<rangle>" |
 
-sParallelL: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>R\<rangle> \<rbrakk>
+sParallelL: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>R\<rangle>; c\<^sub>2 \<noteq> SKIP \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1'||c\<^sub>2 \<langle>R\<rangle>" |
 
-sParallelR: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>2 \<leadsto> c\<^sub>2'  \<langle>R\<rangle> \<rbrakk>
+sParallelR: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>2 \<leadsto> c\<^sub>2'  \<langle>R\<rangle>; c\<^sub>1 \<noteq> SKIP \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1||c\<^sub>2' \<langle>R\<rangle>" |
 
 sParallelSkipL: "\<turnstile> \<langle>P\<rangle> SKIP||c\<^sub>2 \<leadsto> c\<^sub>2 \<langle>OK P\<rangle>" |
