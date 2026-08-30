@@ -91,36 +91,17 @@ lemma seq_decomp_er_from_c2:
   shows "\<exists>u. (c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sOK u) \<and> (\<exists>s'a. (c\<^sub>2, sOK u) \<rightarrow>* (SKIP, sER s'a) \<and> Q s'a)"
   using assms  apply (induction "(c\<^sub>1;;c\<^sub>2, sOK s)" "(SKIP, sER s')" arbitrary: c\<^sub>1 c\<^sub>2 s s' rule: star.induct)
   apply clarsimp
-proof-
-  fix a b c\<^sub>1 c\<^sub>2 s s'
-  assume "(c\<^sub>1;; c\<^sub>2, sOK s) \<rightarrow> (a, b)"
-  assume "(a, b) \<rightarrow>* (SKIP, sER s')"
-  
- (* Step 1: derive the side-fact the IH needs, for c\<^sub>1'' instead of c\<^sub>1 *)
-  have hneg'': "\<forall>t. y \<rightarrow>* (SKIP, sER t) \<longrightarrow> \<not> Q t"
-  proof (intro allI impI)
-    fix t
-    assume "y \<rightarrow>* (SKIP, sER t)"
-    then have "(c\<^sub>1 ;; c\<^sub>2, sOK s) \<rightarrow> y" sledgehammer
-    then have "(c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sER t)"
-      using step sledgehammer
-    then show "\<not> Q t"
-      using hneg by blast
-  qed
+  apply (case_tac "a = SKIP")
+   apply clarsimp
+   apply blast
+  apply (case_tac b)
+   apply clarsimp
+  defer
+   apply clarsimp
+  using ErE SeqE final_iff_SKIP final_def
+   apply (smt (verit, ccfv_SIG) old.prod.inject star.cases star.step)
+by (smt (verit, del_insts) Small_Step.SeqE old.prod.inject star.simps)
 
-  (* Step 2: instantiate the induction hypothesis *)
-  from IH[of c\<^sub>1'' c\<^sub>2 s'', OF refl hneg''] and rest
-  obtain u where
-    run1: "(c\<^sub>1'', sOK s'') \<rightarrow>* (SKIP, sOK u)" and
-    run2: "\<exists>s'a. (c\<^sub>2, sOK u) \<rightarrow>* (SKIP, sER s'a) \<and> Q s'a"
-    by blast
-
-  (* Step 3: prepend the original step onto run1 *)
-  have "(c\<^sub>1, sOK s) \<rightarrow>* (SKIP, sOK u)"
-    using step run1 by (rule star.step)
-
-  with run2 show ?thesis by blast
-qed
 
 
 lemma If_OK_unfold:

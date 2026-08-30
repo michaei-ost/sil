@@ -10,7 +10,52 @@ lemma ParND_is_pre:
     shows "\<turnstile> \<langle>wp (c\<^sub>1 || c\<^sub>2) Q\<rangle> c\<^sub>1 || c\<^sub>2 \<langle>Q\<rangle>"
   sorry
 
-thm tParallelL
+lemma SelectND_is_pre:
+  assumes IH: "\<And>b c Q. (b,c) \<in> set bs \<Longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+proof-
+  define P\<^sub>1 where "P\<^sub>1 = wp (SELECT bs) Q"
+  define P\<^sub>2 where "P\<^sub>2 = (\<lambda>b c s. wp c Q s \<and> bval b s)"
+  have h1: "\<forall>bc \<in> set bs.  case bc of (b, c) \<Rightarrow>  \<turnstile> \<langle>\<lambda>s. (P\<^sub>2 b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>" 
+      by (smt (verit, best) P\<^sub>2_def SIL_Star.strengthen_pre assms case_prodI2)
+  show ?thesis proof (cases Q)
+    case (OK x)
+    have h0: "\<forall>s. P\<^sub>1 s \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> (P\<^sub>2 b c) s \<and> bval b s)"
+      using P\<^sub>1_def wp_SelectND_OK OK P\<^sub>2_def by auto
+    have h2: "\<turnstile> \<langle>P\<^sub>1\<rangle> SELECT bs \<langle>Q\<rangle>" 
+      using h1 h0 SIL_Star.tSelectND by auto
+    then show ?thesis
+      by (metis h2 P\<^sub>1_def)
+  next
+    case (ER x)
+    thm wp_SelectND_ER
+    have h0: "\<forall>s. P\<^sub>1 s \<longrightarrow> (\<exists>(b,c) \<in> set bs. bval b s \<and> (P\<^sub>2 b c) s) 
+              \<or> (\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s)"
+      unfolding P\<^sub>1_def P\<^sub>2_def 
+      using wp_SelectND_ER ER by auto
+    have h2': "\<forall>s. P\<^sub>1 s \<and> (\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s) \<longrightarrow> (\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s)"
+      by simp
+    have h2: "\<turnstile> \<langle>\<lambda>s. P\<^sub>1 s \<and> (\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s)\<rangle> SELECT bs \<langle>ER x\<rangle>" 
+      using h2' SIL_Star.tSelectNDNP
+      by (smt (verit, del_insts) ER P\<^sub>1_def SIL_Star.weaken_post_er case_prodD case_prodE
+          wp_SelectND_ER)
+    have h3': "\<forall>s. P\<^sub>1 s \<and> \<not>(\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s) \<longrightarrow> (\<exists>(b,c) \<in> set bs. bval b s \<and> (P\<^sub>2 b c) s)"
+      using h0 by blast
+    have h3'': "\<forall>s. P\<^sub>1 s \<and> \<not>(\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s)
+               \<longrightarrow> (\<exists>b c. (b,c) \<in> set bs \<and> (P\<^sub>2 b c) s \<and> bval b s)"
+      using h0 by fastforce
+    have h3: "\<turnstile> \<langle>\<lambda>s. P\<^sub>1 s \<and> \<not>(\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s)\<rangle> SELECT bs \<langle>ER x\<rangle>" 
+      using h1 h3' h3'' SIL_Star.tSelectND SIL_Star.weaken_post_er
+      by (smt (verit, best) ER SIL_Star.strengthen_pre_er case_prodI2 case_prod_conv)
+
+    have h4: "\<turnstile> \<langle>\<lambda>s. (P\<^sub>1 s \<and> (\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s))
+              \<or> (P\<^sub>1 s \<and> \<not>(\<forall>(b,c) \<in> set bs. \<not>bval b s \<and> x s))\<rangle> 
+              SELECT bs \<langle>ER x\<rangle>" 
+      using h2 h3 tDisjunction by auto
+    then show ?thesis by (metis (no_types, lifting) ER P\<^sub>1_def SIL_Star.strengthen_pre)
+  qed
+qed
+
 
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
@@ -62,14 +107,13 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
     case (SelectND x)
     then show ?case
       apply clarsimp
-      apply (cases Q)
-      sorry
+      by (simp add: SIL_Star_Complete.SelectND_is_pre)
   next
-    case (While x1 c)
+    case (While b c)
     then show ?case
       apply (cases Q)
-      apply clarsimp
-      sorry
+       apply clarsimp
+      apply (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: small_step.induct)
   next 
     case (Par c1 c2)
     then show ?case

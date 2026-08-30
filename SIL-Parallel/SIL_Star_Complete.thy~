@@ -2,6 +2,82 @@ theory SIL_Star_Complete
 imports SIL_Star_WP SIL_Star_Sound SIL_Big_Step_Complete
 begin
 
+lemma ParND_is_pre:
+  assumes IH1: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>1 Q\<rangle> c\<^sub>1 \<langle>Q\<rangle>"
+      and IH2: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>2 Q\<rangle> c\<^sub>2 \<langle>Q\<rangle>"
+      and "c\<^sub>1 \<noteq> SKIP"
+      and "c\<^sub>2 \<noteq> SKIP"
+    shows "\<turnstile> \<langle>wp (c\<^sub>1 || c\<^sub>2) Q\<rangle> c\<^sub>1 || c\<^sub>2 \<langle>Q\<rangle>"
+  sorry
+
+lemma SelectND_is_pre:
+  assumes IH: "\<And>b c Q. (b,c) \<in> set bs \<Longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+proof-
+  show ?thesis 
+  proof(cases "\<forall>s. \<exists>b c.(b, c) \<in> set bs \<and> bval b s")
+      fix s
+      case True
+      obtain b c where bc:"(b, c) \<in> set bs \<and> bval b s"
+        using True by auto
+      obtain R where r: "R = (\<lambda>b c s. wp c (Q) s \<and> bval b s)" 
+        by simp
+      have h0': "\<forall>(b,c) \<in> set bs.  \<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>Q\<rangle>" 
+        by (smt (verit) SIL_Star.strengthen_pre assms case_prodI2 r)
+      have h1: "\<forall>s. wp (SELECT bs) Q s \<longrightarrow> (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)"
+        sorry
+      then show ?thesis using h0' h1 SIL_Star.tSelectND
+        by blast
+    next
+      case False
+      show ?thesis proof(cases Q)
+        fix s
+        case (OK x1)
+        have h0: "(\<exists>(b, c) \<in> set bs. bval b s \<and> wp c (OK x1) s) = False"
+          using False by auto
+        have h1: "wp (SELECT bs) Q s = False"
+          using False OK h0 by simp
+        have h2: "(\<forall>s. wp (SELECT bs) Q s = False)"
+          sledgehammer
+        then show ?thesis sledgehammer
+
+          
+          using False tFalsePre
+          sledgehammer
+      next
+        case (ER x2)
+        then show ?thesis sorry
+      qed
+    qed
+  assume path_exists: "\<exists>b c.(b, c) \<in> set bs \<and> bval b s"
+  obtain b c where bc:"(b, c) \<in> set bs \<and> bval b s"
+    using path_exists by auto
+  obtain R where r: "R = (\<lambda>b c s. wp c (OK x) s \<and> bval b s)" 
+    by simp
+  have h0: " \<turnstile> \<langle>\<lambda>s. (R b c) s \<and> bval b s\<rangle> c \<langle>OK x\<rangle>"
+    by (metis (no_types, lifting) SIL_Star.strengthen_pre assms bc r)
+  have h1: "\<forall>s. wp (SELECT bs) Q s \<longrightarrow> (\<exists>b c.(b, c) \<in> set bs  \<and> (R b c) s \<and> bval b s)"
+    using OK r by auto
+  have "\<exists>b c.(b, c) \<in> set bs \<and> bval b s \<longrightarrow> ?thesis"
+    by (metis assms)
+  have h2: "\<not> (\<exists>b c.(b, c) \<in> set bs \<and> bval b s) \<Longrightarrow> ?thesis"
+    by (metis bc)
+
+  then show ?thesis sorry
+next
+  case (ER x)
+  then show ?thesis sorry
+qed
+  apply (cases Q)
+   apply clarsimp
+  unfolding wp_def
+   apply clarsimp
+  apply (in
+  using SelectND sledgehammer
+  sorry
+
+thm tParallelL
+
 lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
     case SKIP
@@ -34,8 +110,12 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   next
     case (Seq c1 c2)
     then show ?case
-      sorry
-  next
+      apply (cases Q)
+       apply clarsimp
+       apply (metis wp_Seq_OK SIL_Star.tSeqOK)
+      apply clarsimp
+      by (metis SIL_Star.tSeqER SIL_Star.tSeqOK tDisjunction)
+    next
     case (If x1 c1 c2)
     then show ?case
       apply(cases Q)
@@ -43,18 +123,26 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
       using wp_If
        apply (smt (verit, del_insts) SIL_Star.strengthen_pre SIL_Star.tIf)
       apply clarsimp
-using wp_If by (smt (verit, del_insts) SIL_Star.strengthen_pre SIL_Star.tIf)
+      using wp_If by (smt (verit, del_insts) SIL_Star.strengthen_pre SIL_Star.tIf)
   next
     case (SelectND x)
     then show ?case
-      by (simp add: SelectND_is_pre)
+      apply clarsimp
+      by (simp add: SIL_Star_Complete.SelectND_is_pre)
   next
     case (While x1 c)
     then show ?case
       apply (cases Q)
       apply clarsimp
-      apply (metis While_is_pre_ok)
-    by (metis While_is_pre_er)
+      sorry
+  next 
+    case (Par c1 c2)
+    then show ?case
+       apply (cases "c1 = SKIP")
+        apply (metis wp_Par_SKIP_L tParallelSkipL)
+       apply (cases "c2 = SKIP")
+       apply (metis wp_Par_SKIP_R tParallelSkipR)
+      using wp_Par_OK by (simp add: ParND_is_pre)
 qed
 
 lemma valid_imp_wp_big_step: "\<Turnstile> \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow>
