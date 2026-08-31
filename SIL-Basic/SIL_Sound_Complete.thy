@@ -1,5 +1,3 @@
-(* Author: Tobias Nipkow *)
-
 subsection \<open>Soundness and Completeness\<close>
 
 theory SIL_Sound_Complete
@@ -40,7 +38,7 @@ lemma wp_Ass [simp]:
   by (fastforce simp: wp_def)
 
 lemma wp_AssND [simp]: 
-  "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := v))))"
+  "wp (x::= ND vals) Q = (\<lambda>s. (\<exists>v \<in> vals. Q (s[v/x])))"
   by (fastforce simp: wp_def)
 
 lemma wp_SelectND[simp]: 

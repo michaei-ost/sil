@@ -81,100 +81,96 @@ lemma sil_sound:
   using sil_while_sound_ok apply auto[1]
   apply clarsimp using sil_while_sound_er by auto
 
+
 subsubsection "Weakest Precondition"
 
-fun apply_post :: "post \<Rightarrow> (state \<times> bool) \<Rightarrow> bool" where
-  "apply_post (OK Q) (t, True)  = Q t" |
-  "apply_post (ER Q) (t, False) = Q t" |
-  "apply_post _       _         = False"
+definition wp :: "com \<Rightarrow> post \<Rightarrow> assn" where
+  "wp c Q = (\<lambda>s. \<exists>t. (c,s) \<Down> t \<and> apply_post Q t)"
 
-definition wp_big_step :: "com \<Rightarrow> post \<Rightarrow> assn" where
-  "wp_big_step c Q = (\<lambda>s. \<exists>t. (c,s) \<Down> t \<and> apply_post Q t)"
+lemma wp_SKIP_OK [simp]: 
+  "wp SKIP (OK Q) = Q"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_big_step_SKIP_OK [simp]: 
-  "wp_big_step SKIP (OK Q) = Q"
-  by (rule ext) (fastforce simp: wp_big_step_def)
+lemma wp_SKIP_ER [simp]: 
+  "wp SKIP (ER Q) = (\<lambda>s. False)"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_big_step_SKIP_ER [simp]: 
-  "wp_big_step SKIP (ER Q) = (\<lambda>s. False)"
-  by (rule ext) (fastforce simp: wp_big_step_def)
+lemma wp_ABORT_ER [simp]: 
+  "wp ABORT (ER Q) = Q"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_big_step_ABORT_ER [simp]: 
-  "wp_big_step ABORT (ER Q) = Q"
-  by (rule ext) (fastforce simp: wp_big_step_def)
+lemma wp_ABORT_OK [simp]: 
+  "wp ABORT (OK Q) = (\<lambda>s. False)"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_big_step_ABORT_OK [simp]: 
-  "wp_big_step ABORT (OK Q) = (\<lambda>s. False)"
-  by (rule ext) (fastforce simp: wp_big_step_def)
+lemma wp_Assign_OK [simp]: 
+  "wp (x::=a) (OK Q) = (\<lambda>s. Q(s[a/x]))"
+  by (fastforce simp: wp_def)
 
-lemma wp_big_step_Assign_OK [simp]: 
-  "wp_big_step (x::=a) (OK Q) = (\<lambda>s. Q(s[a/x]))"
-  by (fastforce simp: wp_big_step_def)
+lemma wp_Assign_ER [simp]: 
+  "wp (x::=a) (ER Q) = (\<lambda>s. False)"
+  using wp_def by fastforce
 
-lemma wp_big_step_Assign_ER [simp]: 
-  "wp_big_step (x::=a) (ER Q) = (\<lambda>s. False)"
-  using wp_big_step_def by fastforce
+lemma wp_AssignND_NonEmpty_OK [simp]: 
+  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := aval v s))))"
+  by (fastforce simp: wp_def)
 
-lemma wp_big_step_AssignND_NonEmpty_OK [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp_big_step (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := aval v s))))"
-  by (fastforce simp: wp_big_step_def)
+lemma wp_AssignND_NonEmpty_ER [simp]: 
+  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (ER Q) = (\<lambda>s. False)"
+  by (fastforce simp: wp_def)
 
-lemma wp_big_step_AssignND_NonEmpty_ER [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp_big_step (x::= ND vals) (ER Q) = (\<lambda>s. False)"
-  by (fastforce simp: wp_big_step_def)
-
-lemma wp_big_step_AssignND_Empty_ER [simp]: 
-  "vals = {} \<Longrightarrow> wp_big_step (x::= ND vals) (ER Q) = Q"
-  unfolding wp_big_step_def
+lemma wp_AssignND_Empty_ER [simp]: 
+  "vals = {} \<Longrightarrow> wp (x::= ND vals) (ER Q) = Q"
+  unfolding wp_def
   by auto
 
-lemma wp_big_step_AssignND_Empty_OK [simp]: 
-  "vals = {} \<Longrightarrow> wp_big_step (x::= ND vals) (OK Q) = (\<lambda>s. False)"
-  unfolding wp_big_step_def
+lemma wp_AssignND_Empty_OK [simp]: 
+  "vals = {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. False)"
+  unfolding wp_def
   by auto
 
-lemma wp_big_step_SelectND_OK[simp]: 
-  "wp_big_step (SelectND S) (OK Q) = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp_big_step c (OK Q) s))"
-  by (fastforce simp: wp_big_step_def)
+lemma wp_SelectND_OK[simp]: 
+  "wp (SelectND S) (OK Q) = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (OK Q) s))"
+  by (fastforce simp: wp_def)
 
-lemma wp_big_step_SelectND_ER[simp]: 
-  "wp_big_step (SelectND S) (ER Q) = 
-    (\<lambda>s. (\<exists>(b,c) \<in> set S. (bval b s) \<and> (wp_big_step c (ER Q) s)) 
+lemma wp_SelectND_ER[simp]: 
+  "wp (SelectND S) (ER Q) = 
+    (\<lambda>s. (\<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (ER Q) s)) 
                 \<or> ((\<forall>(b,c) \<in> set S. \<not>bval b s) \<and> Q s))"
   apply (rule ext)
-  apply (simp add: wp_big_step_def)
+  apply (simp add: wp_def)
   apply (rule iffI)
   apply clarsimp
   apply blast
   by blast
 
-lemma wp_big_step_Seq_OK[simp]: 
-  "wp_big_step (c\<^sub>1;;c\<^sub>2) (OK Q) = wp_big_step c\<^sub>1 (OK (wp_big_step c\<^sub>2 (OK Q)))"
-  by (rule ext) (fastforce simp: wp_big_step_def)
+lemma wp_Seq_OK[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) (OK Q) = wp c\<^sub>1 (OK (wp c\<^sub>2 (OK Q)))"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_big_step_Seq_ER[simp]: 
-  "wp_big_step (c\<^sub>1;;c\<^sub>2) (ER Q) = (\<lambda>s. wp_big_step c\<^sub>1 (OK (wp_big_step c\<^sub>2 (ER Q))) s \<or> wp_big_step c\<^sub>1 (ER Q) s )"
-  by (rule ext) (fastforce simp: wp_big_step_def)
+lemma wp_Seq_ER[simp]: 
+  "wp (c\<^sub>1;;c\<^sub>2) (ER Q) = (\<lambda>s. wp c\<^sub>1 (OK (wp c\<^sub>2 (ER Q))) s \<or> wp c\<^sub>1 (ER Q) s )"
+  by (rule ext) (fastforce simp: wp_def)
 
-lemma wp_big_step_If[simp]:
- "wp_big_step (IF b THEN c\<^sub>1 ELSE c\<^sub>2) Q = (\<lambda>s. if bval b s then wp_big_step c\<^sub>1 Q s else wp_big_step c\<^sub>2 Q s)"
-  by (rule ext) (auto simp: wp_big_step_def)
+lemma wp_If[simp]:
+ "wp (IF b THEN c\<^sub>1 ELSE c\<^sub>2) Q = (\<lambda>s. if bval b s then wp c\<^sub>1 Q s else wp c\<^sub>2 Q s)"
+  by (rule ext) (auto simp: wp_def)
 
-lemma wp_big_step_While_If:
- "wp_big_step (WHILE b DO c) Q s = wp_big_step (IF b THEN c;;WHILE b DO c ELSE SKIP) Q s"
-  unfolding wp_big_step_def by blast
+lemma wp_While_If:
+ "wp (WHILE b DO c) Q s = wp (IF b THEN c;;WHILE b DO c ELSE SKIP) Q s"
+  unfolding wp_def by blast
 
-lemma wp_big_step_While_True[simp]: 
-  "bval b s \<Longrightarrow> wp_big_step (WHILE b DO c) Q s = wp_big_step (c;; WHILE b DO c) Q s"
-  by(fastforce simp: wp_big_step_While_If)
+lemma wp_While_True[simp]: 
+  "bval b s \<Longrightarrow> wp (WHILE b DO c) Q s = wp (c;; WHILE b DO c) Q s"
+  by(fastforce simp: wp_While_If)
 
-lemma wp_big_step_While_False_OK[simp]: 
-  "\<not> bval b s \<Longrightarrow> wp_big_step (WHILE b DO c) (OK Q) s  = Q s"
-  by (simp add: wp_big_step_While_If)
+lemma wp_While_False_OK[simp]: 
+  "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) (OK Q) s  = Q s"
+  by (simp add: wp_While_If)
 
-lemma wp_big_step_While_False_ER[simp]: 
-  "\<not> bval b s \<Longrightarrow> wp_big_step (WHILE b DO c) (ER Q) s  = False"
-  by (simp add: wp_big_step_While_If)
+lemma wp_While_False_ER[simp]: 
+  "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) (ER Q) s  = False"
+  by (simp add: wp_While_If)
 
 
 subsubsection "Completeness"
@@ -186,30 +182,30 @@ thm SeqTrue
 thm SeqFalse
 
 lemma "seq_is_pre":
-  assumes c1: "\<forall>R. \<turnstile> \<langle>wp_big_step c1 R\<rangle> c1  \<langle>R\<rangle>"
-  and c2: "\<turnstile> \<langle>wp_big_step c2 Q\<rangle> c2  \<langle>Q\<rangle>"
-  shows "\<turnstile> \<langle>wp_big_step (c1;; c2) Q\<rangle>
+  assumes c1: "\<forall>R. \<turnstile> \<langle>wp c1 R\<rangle> c1  \<langle>R\<rangle>"
+  and c2: "\<turnstile> \<langle>wp c2 Q\<rangle> c2  \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (c1;; c2) Q\<rangle>
          c1;; c2 \<langle>Q\<rangle>"
 proof (cases Q)
   case (OK x)
-  have "\<turnstile> \<langle>wp_big_step c1 (OK (wp_big_step c2 Q))\<rangle> c1  \<langle>OK (wp_big_step c2 Q)\<rangle>"
+  have "\<turnstile> \<langle>wp c1 (OK (wp c2 Q))\<rangle> c1  \<langle>OK (wp c2 Q)\<rangle>"
     by (metis c1)
   then show ?thesis
     using OK c2 by auto
 next
   case (ER x)
-  have h0: "\<turnstile> \<langle>wp_big_step c1 (OK (wp_big_step c2 Q))\<rangle> c1  \<langle>OK (wp_big_step c2 Q)\<rangle>"
+  have h0: "\<turnstile> \<langle>wp c1 (OK (wp c2 Q))\<rangle> c1  \<langle>OK (wp c2 Q)\<rangle>"
     by (metis c1)
-  have h1: "\<turnstile> \<langle>wp_big_step c1 (OK (wp_big_step c2 Q))\<rangle> c1;;c2  \<langle>ER x\<rangle>"
+  have h1: "\<turnstile> \<langle>wp c1 (OK (wp c2 Q))\<rangle> c1;;c2  \<langle>ER x\<rangle>"
     by (metis c2 ER h0 tSeqOK)
-  have h2: "\<turnstile> \<langle>wp_big_step c1 (ER x)\<rangle> c1  \<langle>ER x\<rangle>"
+  have h2: "\<turnstile> \<langle>wp c1 (ER x)\<rangle> c1  \<langle>ER x\<rangle>"
     by (metis c1)
-  have h3: "\<turnstile> \<langle>wp_big_step c1 (ER x)\<rangle> c1;;c2  \<langle>ER x\<rangle>"
+  have h3: "\<turnstile> \<langle>wp c1 (ER x)\<rangle> c1;;c2  \<langle>ER x\<rangle>"
     by (metis c1 tSeqER)
-  have h4: "\<turnstile> \<langle>\<lambda>s. (wp_big_step c1 (ER x)) s \<or> wp_big_step c1 (OK (wp_big_step c2 Q)) s\<rangle> c1;;c2  \<langle>ER x\<rangle>"
+  have h4: "\<turnstile> \<langle>\<lambda>s. (wp c1 (ER x)) s \<or> wp c1 (OK (wp c2 Q)) s\<rangle> c1;;c2  \<langle>ER x\<rangle>"
     by (metis h3 h1 disjunction)
   then show ?thesis
-    by (smt (verit) ER strengthen_pre wp_big_step_Seq_ER)
+    by (smt (verit) ER strengthen_pre wp_Seq_ER)
 qed
 
 
@@ -223,7 +219,7 @@ definition select_pre where
   "select_pre \<equiv> \<lambda>bs Q. (\<lambda>s.(\<exists>t. (SELECT bs, s) \<Down> t \<and> apply_post Q t))"
 
 definition select_pre_er where
-  "select_pre_er \<equiv> \<lambda>bs Q. wp_big_step (SelectND bs) Q"
+  "select_pre_er \<equiv> \<lambda>bs Q. wp (SelectND bs) Q"
 
 definition select_path_pre_er where
   "select_path_pre_er \<equiv> \<lambda>b c Q. (\<lambda>s. (\<exists>t. (c, s) \<Down> (t,False) \<and> post_assn Q t))"
@@ -235,8 +231,8 @@ definition select_path_pre where
   "select_path_pre \<equiv> \<lambda>b c Q. (\<lambda>s. (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t))"
 
 lemma SelectND_is_pre:
-  assumes "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> \<turnstile> \<langle>wp_big_step c Q\<rangle> c \<langle>Q\<rangle>"
-  shows "\<turnstile> \<langle>wp_big_step (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
+  assumes "\<forall>b c. (b,c) \<in> set bs \<longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (SELECT bs) Q\<rangle> SELECT bs \<langle>Q\<rangle>"
 proof(cases Q)
   case (OK x)
     have h3: "\<forall>s. select_pre bs Q s \<longrightarrow> 
@@ -245,7 +241,7 @@ proof(cases Q)
   
     have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow> \<turnstile> \<langle>\<lambda>s. select_path_pre b c Q s \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
       using assms
-      unfolding select_path_pre_def wp_big_step_def apply clarsimp
+      unfolding select_path_pre_def wp_def apply clarsimp
       by (metis (no_types, lifting) strengthen_pre)
   
     hence "\<turnstile> \<langle>select_pre bs Q\<rangle> SELECT bs \<langle>Q\<rangle>" 
@@ -253,13 +249,13 @@ proof(cases Q)
       using h3 by (fastforce intro: tSelectND)
   
     thus ?thesis
-      by (fastforce simp: wp_big_step_def select_pre_def)
+      by (fastforce simp: wp_def select_pre_def)
   next
     case (ER x)
     have h3: "\<forall>s. select_pre_er bs Q s \<longrightarrow> (\<exists>(b,c) \<in> set bs. (bval b s) \<and> 
                 (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t)) 
                 \<or> ((\<forall>(b,c) \<in> set bs. \<not>bval b s) \<and> x s)"
-      by (smt (verit, del_insts) ER case_prodE case_prodI select_pre_er_def wp_big_step_SelectND_ER wp_big_step_def)
+      by (smt (verit, del_insts) ER case_prodE case_prodI select_pre_er_def wp_SelectND_ER wp_def)
 
     have h4: "\<forall>s. select_pre_er bs Q s \<and> (\<exists>(b,c) \<in> set bs. bval b s) \<longrightarrow> (\<exists>(b,c) \<in> set bs. (bval b s) \<and> 
                 (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t))"
@@ -276,7 +272,7 @@ proof(cases Q)
     have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow>
        \<turnstile> \<langle>\<lambda>s. (select_path_pre_er b c Q s)  \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
       using assms
-      unfolding select_path_pre_def wp_big_step_def apply clarsimp
+      unfolding select_path_pre_def wp_def apply clarsimp
       by (smt (verit) ER apply_post.simps(2) post_assn.simps(2) select_path_pre_er_def
           strengthen_pre)
 
@@ -315,13 +311,13 @@ primrec QQ ::
   "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
 where
   "QQ R b c 0 = (\<lambda>s. R s \<and> \<not> bval b s)"
-| "QQ R b c (Suc n) = (\<lambda>s. wp_big_step c (OK (QQ R b c n)) s \<and> bval b s)"
+| "QQ R b c (Suc n) = (\<lambda>s. wp c (OK (QQ R b c n)) s \<and> bval b s)"
 
 primrec QQ_er_1 ::
   "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
   where
-  "QQ_er_1 R b c 0 = (\<lambda>s. wp_big_step c (ER R) s \<and> bval b s)"
-| "QQ_er_1 R b c (Suc n) = (\<lambda>s. wp_big_step c (OK (QQ_er_1 R b c n)) s \<and> bval b s)"
+  "QQ_er_1 R b c 0 = (\<lambda>s. wp c (ER R) s \<and> bval b s)"
+| "QQ_er_1 R b c (Suc n) = (\<lambda>s. wp c (OK (QQ_er_1 R b c n)) s \<and> bval b s)"
 
 primrec QQ_er ::
   "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
@@ -344,13 +340,13 @@ proof (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
         by blast
       then have h0: "QQ Q b c n s2"
         by simp
-      then have h1: "wp_big_step c (OK (QQ Q b c n)) s1"
-        unfolding wp_big_step_def
+      then have h1: "wp c (OK (QQ Q b c n)) s1"
+        unfolding wp_def
       proof-
         show "\<exists>t. (c, s1) \<Down> t \<and> apply_post (OK (QQ Q b c n)) t"
           using WhileBodySucceeds.hyps(2) hn by auto
       qed
-    then have h2: "wp_big_step c (OK (QQ Q b c n)) s1 \<and> bval b s1"
+    then have h2: "wp c (OK (QQ Q b c n)) s1 \<and> bval b s1"
       by (metis h1 WhileBodySucceeds.hyps(1))    
     show "\<exists>n. QQ Q b c n s1"
         proof (rule exI[where x="Suc n"])
@@ -363,13 +359,13 @@ proof (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
        by force
       then have h0: "QQ Q b c n s2"
         by simp
-      then have h1: "wp_big_step c (ER (QQ Q b c n)) s1"
-        unfolding wp_big_step_def
+      then have h1: "wp c (ER (QQ Q b c n)) s1"
+        unfolding wp_def
       proof-
         show "\<exists>t. (c, s1) \<Down> t \<and> apply_post (ER (QQ Q b c n)) t"
           using WhileBodyAborts.prems by auto
       qed
-    then have h2: "wp_big_step c (ER (QQ Q b c n)) s1 \<and> bval b s1"
+    then have h2: "wp c (ER (QQ Q b c n)) s1 \<and> bval b s1"
       by (metis h1 WhileBodyAborts.hyps(1))
     show "\<exists>n. QQ Q b c n s1"
         proof (rule exI[where x="Suc n"])
@@ -387,7 +383,7 @@ lemma While_Strengthen_ER:
     apply simp
    defer
    apply clarsimp
-   apply (metis QQ_er_1.simps(1) apply_post.simps(2) wp_big_step_def)
+   apply (metis QQ_er_1.simps(1) apply_post.simps(2) wp_def)
   apply clarsimp
 proof-
   fix s\<^sub>1 s\<^sub>2 a Q
@@ -401,24 +397,24 @@ proof-
     by (metis Qa IH)
   then have h0: "QQ_er_1 Q b c n s\<^sub>2"
     by simp
-  then have h1: "wp_big_step c (OK (QQ_er_1 Q b c n)) s\<^sub>1"
-    unfolding wp_big_step_def
+  then have h1: "wp c (OK (QQ_er_1 Q b c n)) s\<^sub>1"
+    unfolding wp_def
     using c_step by auto
-  then have h2: "wp_big_step c (OK (QQ_er_1 Q b c n)) s\<^sub>1 \<and> bval b s\<^sub>1"
+  then have h2: "wp c (OK (QQ_er_1 Q b c n)) s\<^sub>1 \<and> bval b s\<^sub>1"
     by (metis h1 bval)
   show "\<exists>n. QQ_er_1 Q b c n s\<^sub>1"
     by (meson QQ_er_1.simps(2) h2)
 qed
 
 lemma While_is_pre_ok:
-  assumes "\<forall>Q. \<turnstile> \<langle>wp_big_step c (OK Q)\<rangle> c  \<langle>OK Q\<rangle>"
-  shows "\<turnstile> \<langle>wp_big_step (WHILE b DO c) (OK Q)\<rangle> (WHILE b DO c) \<langle>(OK Q)\<rangle>"
-  unfolding wp_big_step_def  
+  assumes "\<forall>Q. \<turnstile> \<langle>wp c (OK Q)\<rangle> c  \<langle>OK Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (WHILE b DO c) (OK Q)\<rangle> (WHILE b DO c) \<langle>(OK Q)\<rangle>"
+  unfolding wp_def  
 proof- 
   fix n
-  have h1: "\<turnstile> \<langle>wp_big_step c (OK (QQ Q b c n))\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
+  have h1: "\<turnstile> \<langle>wp c (OK (QQ Q b c n))\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
     by (metis assms)
-  have h2: "\<turnstile> \<langle>\<lambda>s. (wp_big_step c (OK (QQ Q b c n)) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
+  have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (OK (QQ Q b c n)) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
     by (smt (verit, best) conseqOK h1)
   have h3: "\<turnstile> \<langle>(QQ Q b c (Suc n))\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
     by (simp add: h2)
@@ -440,9 +436,9 @@ proof-
 qed
 
 lemma While_is_pre_er:
-  assumes "\<forall>Q. \<turnstile> \<langle>wp_big_step c Q\<rangle> c  \<langle>Q\<rangle>"
-  shows "\<turnstile> \<langle>wp_big_step (WHILE b DO c) (ER Q)\<rangle> (WHILE b DO c) \<langle>(ER Q)\<rangle>"
-  unfolding wp_big_step_def
+  assumes "\<forall>Q. \<turnstile> \<langle>wp c Q\<rangle> c  \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (WHILE b DO c) (ER Q)\<rangle> (WHILE b DO c) \<langle>(ER Q)\<rangle>"
+  unfolding wp_def
   apply clarsimp 
 proof-
   have h0: "\<exists>a ba. (WHILE b DO c, s) \<Down> (a, ba) \<and> Q a \<and> \<not> ba 
@@ -450,11 +446,11 @@ proof-
             (\<exists>a. (WHILE b DO c, s) \<Down> (a, False) \<and> Q a)"
     by blast
   fix n
-  have h0: "\<turnstile> \<langle>wp_big_step c (ER (QQ_er Q b c 0))\<rangle> c  \<langle>ER (QQ_er Q b c 0)\<rangle>"
+  have h0: "\<turnstile> \<langle>wp c (ER (QQ_er Q b c 0))\<rangle> c  \<langle>ER (QQ_er Q b c 0)\<rangle>"
     by (metis assms)
-  have h1: "\<turnstile> \<langle>wp_big_step c (OK (QQ_er Q b c (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+  have h1: "\<turnstile> \<langle>wp c (OK (QQ_er Q b c (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
     by (metis assms)
-  have h2: "\<turnstile> \<langle>\<lambda>s. (wp_big_step c (OK (QQ_er Q b c (Suc n))) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+  have h2: "\<turnstile> \<langle>\<lambda>s. (wp c (OK (QQ_er Q b c (Suc n))) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
     by (metis (no_types, lifting) assms strengthen_pre_ok)
   have h3: "\<turnstile> \<langle>(QQ_er Q b c (Suc (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
     using h2 by auto
@@ -477,28 +473,28 @@ proof-
 qed
 
 
-lemma wp_big_step_is_pre: "\<turnstile> \<langle>wp_big_step c Q\<rangle> c \<langle>Q\<rangle>"
+lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
     case SKIP
     then show ?case
-      by (metis false_pre post_assn.elims strengthen_pre tSkip wp_big_step_SKIP_ER wp_big_step_SKIP_OK)
+      by (metis false_pre post_assn.elims strengthen_pre tSkip wp_SKIP_ER wp_SKIP_OK)
     case ABORT
     then show ?case
-      by (metis false_pre post_assn.elims strengthen_pre tAbort wp_big_step_ABORT_ER wp_big_step_ABORT_OK)
+      by (metis false_pre post_assn.elims strengthen_pre tAbort wp_ABORT_ER wp_ABORT_OK)
   next
     case (Assign x1 x2)
     then show ?case 
       apply (cases Q)
       apply simp
-    by (metis wp_big_step_Assign_ER strengthen_pre_er false_pre)
+    by (metis wp_Assign_ER strengthen_pre_er false_pre)
   next
     case (AssignND x1 x2)
     then show ?case 
       apply (cases Q)
       apply clarsimp
-      apply (smt (verit, best) strengthen_pre_ok tAssignNDOK wp_big_step_AssignND_Empty_OK
-          wp_big_step_AssignND_NonEmpty_OK)
-      by (metis false_pre wp_big_step_AssignND_Empty_ER wp_big_step_AssignND_NonEmpty_ER strengthen_pre tAssignNDER)
+      apply (smt (verit, best) strengthen_pre_ok tAssignNDOK wp_AssignND_Empty_OK
+          wp_AssignND_NonEmpty_OK)
+      by (metis false_pre wp_AssignND_Empty_ER wp_AssignND_NonEmpty_ER strengthen_pre tAssignNDER)
   next
     case (Seq c1 c2)
     then show ?case
@@ -506,7 +502,7 @@ lemma wp_big_step_is_pre: "\<turnstile> \<langle>wp_big_step c Q\<rangle> c \<la
   next
     case (If x1 c1 c2)
     then show ?case
-      by (smt (verit, best) strengthen_pre tIf wp_big_step_If)
+      by (smt (verit, best) strengthen_pre tIf wp_If)
   next
     case (SelectND x)
     then show ?case
@@ -520,18 +516,18 @@ lemma wp_big_step_is_pre: "\<turnstile> \<langle>wp_big_step c Q\<rangle> c \<la
     by (metis While_is_pre_er)
 qed
 
-lemma valid_imp_wp_big_step: "\<Turnstile> \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow>
-    \<forall>s. P s \<longrightarrow> wp_big_step c Q s"
-  unfolding wp_big_step_def SIL_valid_def
+lemma valid_imp_wp: "\<Turnstile> \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow>
+    \<forall>s. P s \<longrightarrow> wp c Q s"
+  unfolding wp_def SIL_valid_def
   apply(cases Q)
   apply fastforce
 by fastforce
 
 lemma sil_complete: 
   "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
-  apply (rule strengthen_pre[where P="wp_big_step c Q"])
-  apply (metis valid_imp_wp_big_step)
-by (metis wp_big_step_is_pre)
+  apply (rule strengthen_pre[where P="wp c Q"])
+  apply (metis valid_imp_wp)
+by (metis wp_is_pre)
 
 corollary sil_sound_complete: 
   "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"

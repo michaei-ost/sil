@@ -23,7 +23,7 @@ tSkip: "\<turnstile> \<langle>P\<rangle> SKIP \<langle>P\<rangle>"  |
 
 tAssign:  "\<turnstile> \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<langle>P\<rangle>"  |
 
-tAssignND:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := v)))\<rangle> x::= ND vals \<langle>P\<rangle>"  |
+tAssignND:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<langle>P\<rangle>"  |
 
 tSeq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
       \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>R\<rangle>"  |
