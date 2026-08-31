@@ -81,6 +81,13 @@ thm SelectNDE
 inductive_cases IfE[elim!]: "(IF b THEN c1 ELSE c2,s) \<rightarrow> ct"
 inductive_cases WhileE[elim]: "(WHILE b DO c, s) \<rightarrow> ct"
 
+lemma ErE:
+  assumes "(c, sER s) \<rightarrow> cs'"
+  obtains "cs' = (SKIP, sER s)" "c \<noteq> SKIP"
+  using assms
+  by (cases rule: small_step.cases) auto
+
+
 subsection "Equivalence with big-step semantics"
 
 lemma ok_reachable_from_ok:
@@ -96,21 +103,14 @@ next
     using small_step.cases step.hyps(1,3) by fastforce
 qed
 
-(*
-proof (induction "(c, s)" "(c', sOK s')" arbitrary: c s rule: star.induct)
-  case refl
-  then show ?case
-    by auto
-next
-  case (step y)
-  obtain c'' s'' where x_split: "y = (c'', s'')" by force
-  thus ?case
-    using small_step.cases step.hyps(1,3) by fastforce
-qed
-*)
-
 lemma star_sER: "(SKIP, sER s) \<rightarrow>* (SKIP, sER s)"
   by auto
+
+lemma seq_decomp:
+  "(c\<^sub>1;;c\<^sub>2, s) \<rightarrow>* (SKIP, s') \<Longrightarrow> \<exists>u. (c\<^sub>1,s) \<rightarrow>* (SKIP,u) \<and> (c\<^sub>2,u) \<rightarrow>* (SKIP,s')"
+  apply (induction "(c\<^sub>1;;c\<^sub>2, s)" "(SKIP, s')" arbitrary: c\<^sub>1 c\<^sub>2 s s' rule: star.induct)
+  apply clarsimp
+by (smt (verit, best) Er Small_Step.SeqE prod.inject star.refl star.step)
 
 lemma star_seq2_sOK: "(c1, sOK s) \<rightarrow>* (c1', sOK s') \<Longrightarrow> (c1;;c2, sOK s) \<rightarrow>* (c1';;c2, sOK s')"
 proof(induction "(c1, sOK s)" "(c1', sOK s')" arbitrary: c1 s rule: star.induct)
