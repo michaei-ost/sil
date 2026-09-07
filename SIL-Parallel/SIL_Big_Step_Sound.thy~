@@ -7,7 +7,7 @@ begin
 subsubsection "Soundness"
 
 lemma sil_while_sound_ok:
-assumes "\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>OK (Q n)\<rangle>"
+assumes "\<And>n. \<turnstile>\<^sub>b \<langle>Q (Suc n)\<rangle> c  \<langle>OK (Q n)\<rangle>"
       and "\<And>s. Q 0 s \<Longrightarrow> \<not> bval b s"
       and "\<And>n s. Q (Suc n) s \<Longrightarrow>  bval b s"
       and "Q n s"
@@ -19,8 +19,8 @@ assumes "\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>OK (Q n)\
   by blast
 
 lemma sil_while_sound_er:
-  assumes "\<And>n. \<turnstile> \<langle>Q (Suc (Suc n))\<rangle> c \<langle>OK (Q (Suc n))\<rangle>"
-  and "\<turnstile> \<langle>Q 1\<rangle> c \<langle>ER (Q 0)\<rangle>"
+  assumes "\<And>n. \<turnstile>\<^sub>b \<langle>Q (Suc (Suc n))\<rangle> c \<langle>OK (Q (Suc n))\<rangle>"
+  and "\<turnstile>\<^sub>b \<langle>Q 1\<rangle> c \<langle>ER (Q 0)\<rangle>"
   and "\<And>s. Q 1 s \<Longrightarrow> (\<exists>t. (c, s) \<Down> (t, False) \<and> Q 0 t)"
   and "\<And>n s. Q (Suc n) s \<Longrightarrow> bval b s"
   and "Q (Suc m) s"
@@ -49,7 +49,7 @@ lemma disjunction_sound:
 using SIL_valid_def hP hR by force
 
 lemma sil_sound: 
-  "\<turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>"
+  "\<turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>"
   unfolding SIL_valid_def
   apply (induction rule: SIL.induct; blast?)
   apply fastforce

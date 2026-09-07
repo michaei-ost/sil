@@ -33,20 +33,20 @@ lemma wp_big_step_Assign_ER [simp]:
   using wp_big_step_def by fastforce
 
 lemma wp_big_step_AssignND_NonEmpty_OK [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp_big_step (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := aval v s))))"
+  "vals \<noteq> [] \<Longrightarrow> wp_big_step (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> (set vals). Q (s(x := aval v s))))"
   by (fastforce simp: wp_big_step_def)
 
 lemma wp_big_step_AssignND_NonEmpty_ER [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp_big_step (x::= ND vals) (ER Q) = (\<lambda>s. False)"
+  "vals \<noteq> [] \<Longrightarrow> wp_big_step (x::= ND  vals) (ER Q) = (\<lambda>s. False)"
   by (fastforce simp: wp_big_step_def)
 
 lemma wp_big_step_AssignND_Empty_ER [simp]: 
-  "vals = {} \<Longrightarrow> wp_big_step (x::= ND vals) (ER Q) = Q"
+  "vals = [] \<Longrightarrow> wp_big_step (x::= ND vals) (ER Q) = Q"
   unfolding wp_big_step_def
   by auto
 
 lemma wp_big_step_AssignND_Empty_OK [simp]: 
-  "vals = {} \<Longrightarrow> wp_big_step (x::= ND vals) (OK Q) = (\<lambda>s. False)"
+  "vals = [] \<Longrightarrow> wp_big_step (x::= ND vals) (OK Q) = (\<lambda>s. False)"
   unfolding wp_big_step_def
   by auto
 

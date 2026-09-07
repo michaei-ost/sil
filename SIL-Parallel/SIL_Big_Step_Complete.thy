@@ -347,7 +347,7 @@ qed
 
 lemma valid_imp_wp_big_step: 
   assumes "isSequential c"
-  shows "\<Turnstile> \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow> \<forall>s. P s \<longrightarrow> wp_big_step c Q s"
+  shows "\<Turnstile>\<^sub>b \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow> \<forall>s. P s \<longrightarrow> wp_big_step c Q s"
   unfolding wp_big_step_def SIL_valid_def
   apply(cases Q)
   apply fastforce
@@ -355,7 +355,7 @@ by fastforce
 
 lemma sil_complete: 
   assumes "isSequential c"
-  shows "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<Longrightarrow> \<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>Q\<rangle>"
+  shows "\<Turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>Q\<rangle> \<Longrightarrow> \<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>Q\<rangle>"
   apply (rule strengthen_pre[where P="wp_big_step c Q"])
   apply (metis assms valid_imp_wp_big_step)
 by (metis assms wp_big_step_is_pre)
@@ -363,7 +363,7 @@ by (metis assms wp_big_step_is_pre)
 
 lemma sil_sound_complete: 
   assumes "isSequential c"
-  shows "\<turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
+  shows "\<turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>Q\<rangle>"
 by (metis assms sil_sound sil_complete)
 
 end

@@ -158,19 +158,19 @@ lemma wp_Assign_ER [simp]:
 by (simp add: big_iff_small_wp)
 
 lemma wp_AssignND_NonEmpty_OK [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> vals. Q (s(x := aval v s))))"
+  "vals \<noteq> [] \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. (\<exists>v \<in> set vals. Q (s(x := aval v s))))"
 by (simp add: big_iff_small_wp)
 
 lemma wp_AssignND_NonEmpty_ER [simp]: 
-  "vals \<noteq> {} \<Longrightarrow> wp (x::= ND vals) (ER Q) = (\<lambda>s. False)"
+  "vals \<noteq> [] \<Longrightarrow> wp (x::= ND vals) (ER Q) = (\<lambda>s. False)"
 by (simp add: big_iff_small_wp)
 
 lemma wp_AssignND_Empty_ER [simp]: 
-  "vals = {} \<Longrightarrow> wp (x::= ND vals) (ER Q) = Q"
+  "vals = [] \<Longrightarrow> wp (x::= ND vals) (ER Q) = Q"
 by (simp add: big_iff_small_wp)
 
 lemma wp_AssignND_Empty_OK [simp]: 
-  "vals = {} \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. False)"
+  "vals = [] \<Longrightarrow> wp (x::= ND vals) (OK Q) = (\<lambda>s. False)"
   by (simp add: big_iff_small_wp)
 
 lemma wp_Par_OK[simp]:
@@ -183,7 +183,6 @@ lemma wp_Par_OK[simp]:
   apply(rule iffI)
   using par_step_unfold_ok apply simp
 by (meson ParL ParR star.step)
-
 
 lemma wp_Par_ER[simp]:
   "c\<^sub>1 \<noteq> SKIP \<and> c\<^sub>2 \<noteq> SKIP \<Longrightarrow> wp (c\<^sub>1 || c\<^sub>2) (ER Q) = (\<lambda>s. 
@@ -301,5 +300,325 @@ lemma wp_While_False_OK[simp]:
 lemma wp_While_False_ER[simp]: 
   "\<not> bval b s \<Longrightarrow> wp (WHILE b DO c) (ER Q) s  = False"
   by (simp add: wp_While_If)
+
+lemma wp_Post_Disjunction_OK[simp]:
+  "wp c (OK (\<lambda>s. Q\<^sub>1 s \<or> Q\<^sub>2 s)) =
+   (\<lambda>s. wp c (OK Q\<^sub>1) s \<or> wp c (OK Q\<^sub>2) s)"
+  apply (rule ext)
+  apply (simp add: wp_def)
+  by blast
+
+lemma wp_Post_Disjunction_ER[simp]:
+  "wp c (ER (\<lambda>s. Q\<^sub>1 s \<or> Q\<^sub>2 s)) =
+   (\<lambda>s. wp c (ER Q\<^sub>1) s \<or> wp c (ER Q\<^sub>2) s)"
+  apply (rule ext)
+  apply (simp add: wp_def)
+by blast
+
+datatype pred =
+    PTrue
+  | PFalse
+  | PNot pred
+  | PAnd pred pred
+  | POr pred pred
+  | PAtom bexp
+
+fun pred_sem :: "pred \<Rightarrow> state \<Rightarrow> bool" where
+  "pred_sem PTrue s = True"
+| "pred_sem PFalse s = False"
+| "pred_sem (PNot p) s = (\<not>pred_sem p s)"
+| "pred_sem (PAnd p q) s =
+     (pred_sem p s \<and> pred_sem q s)"
+| "pred_sem (POr p q) s =
+     (pred_sem p s \<or> pred_sem q s)"
+| "pred_sem (PAtom b) s = bval b s"
+
+datatype post' =
+    OK' pred
+    | ER' pred
+
+fun post_sem :: "post' \<Rightarrow> post" where
+  "post_sem (OK' p) = OK (pred_sem p)"
+| "post_sem (ER' p) = ER (pred_sem p)"
+
+fun subst_aexp :: "aexp \<Rightarrow> vname \<Rightarrow> aexp \<Rightarrow> aexp" where 
+  "subst_aexp (N n) x a = N n" 
+| "subst_aexp (V y) x a = (if x = y then a else V y)" 
+| "subst_aexp (Plus e1 e2) x a = Plus (subst_aexp e1 x a) (subst_aexp e2 x a)" 
+
+fun subst_bexp :: "bexp \<Rightarrow> string \<Rightarrow> aexp \<Rightarrow> bexp" where 
+  "subst_bexp (Bc v) x a = Bc v" 
+| "subst_bexp (Not b) x a = Not (subst_bexp b x a)" 
+| "subst_bexp (And b\<^sub>1 b\<^sub>2) x a = And (subst_bexp b\<^sub>1 x a) (subst_bexp b\<^sub>2 x a)" 
+| "subst_bexp (Less a\<^sub>1 a\<^sub>2) x a' = Less (subst_aexp a\<^sub>1 x a') (subst_aexp a\<^sub>2 x a')"
+| "subst_bexp (Equal a\<^sub>1 a\<^sub>2) x a' = Equal (subst_aexp a\<^sub>1 x a') (subst_aexp a\<^sub>2 x a')"
+
+fun subst_pred :: "pred \<Rightarrow> vname \<Rightarrow> aexp \<Rightarrow> pred" where
+  "subst_pred PTrue x a = PTrue" 
+| "subst_pred PFalse x a = PFalse" 
+| "subst_pred (PNot p) x a = PNot (subst_pred p x a)" 
+| "subst_pred (PAnd p q) x a = PAnd (subst_pred p x a) (subst_pred q x a)" 
+| "subst_pred (POr p q) x a = POr (subst_pred p x a) (subst_pred q x a)" 
+| "subst_pred (PAtom b) x a = PAtom (subst_bexp b x a)"
+
+fun bexp_simp :: "bexp \<Rightarrow> bexp" where
+  "bexp_simp (Not b) =
+     (case bexp_simp b of
+        Bc v \<Rightarrow> Bc (\<not>v)
+      | b' \<Rightarrow> Not b')" |
+  "bexp_simp (And b1 b2) =
+     (case (bexp_simp b1, bexp_simp b2) of
+        (Bc v1, Bc v2) \<Rightarrow> Bc (v1 \<and> v2)
+      | (Bc True, b2') \<Rightarrow> b2'
+      | (b1', Bc True) \<Rightarrow> b1'
+      | (Bc False, _) \<Rightarrow> Bc False
+      | (_, Bc False) \<Rightarrow> Bc False
+      | (b1', b2') \<Rightarrow> And b1' b2')" |
+  "bexp_simp b = b"
+
+fun aexp_simp :: "aexp \<Rightarrow> aexp" where 
+  "aexp_simp (N n) = N n" 
+| "aexp_simp (V x) = V x" 
+| "aexp_simp (Plus a\<^sub>1 a\<^sub>2) = 
+  (case (aexp_simp a\<^sub>1, aexp_simp a\<^sub>2) of 
+    (N n\<^sub>1, N n\<^sub>2) \<Rightarrow> N (n\<^sub>1 + n\<^sub>2) 
+  | (a\<^sub>1', a\<^sub>2') \<Rightarrow> Plus a\<^sub>1' a\<^sub>2')"
+
+fun pred_simp :: "pred \<Rightarrow> pred" where 
+  "pred_simp PTrue = PTrue" 
+| "pred_simp PFalse = PFalse" 
+| "pred_simp (PNot p) = 
+  (case pred_simp p of 
+    PTrue \<Rightarrow> PFalse 
+  | PFalse \<Rightarrow> PTrue
+  | p' \<Rightarrow> PNot p')" 
+| "pred_simp (PAnd p q) = 
+  (case (pred_simp p, pred_simp q) of 
+    (PFalse, _) \<Rightarrow> PFalse 
+  | (_, PFalse) \<Rightarrow> PFalse 
+  | (PTrue, q') \<Rightarrow> q' 
+  | (p', PTrue) \<Rightarrow> p' 
+  | (p', q') \<Rightarrow> PAnd p' q')" 
+| "pred_simp (POr p q) = 
+  (case (pred_simp p, pred_simp q) of 
+    (PTrue, _) \<Rightarrow> PTrue 
+  | (_, PTrue) \<Rightarrow> PTrue 
+  | (PFalse, q') \<Rightarrow> q' 
+  | (p', PFalse) \<Rightarrow> p' 
+  | (p', q') \<Rightarrow> POr p' q')" 
+| "pred_simp (PAtom (Bc v)) = (if v then PTrue else PFalse)" 
+| "pred_simp (PAtom (Less a\<^sub>1 a\<^sub>2)) = 
+  (case (aexp_simp a\<^sub>1, aexp_simp a\<^sub>2) of 
+    (N n\<^sub>1, N n\<^sub>2) \<Rightarrow> if n\<^sub>1 < n\<^sub>2 then PTrue else PFalse 
+  | (a\<^sub>1', a\<^sub>2') \<Rightarrow> PAtom (Less a\<^sub>1' a\<^sub>2'))"
+| "pred_simp (PAtom (Equal a\<^sub>1 a\<^sub>2)) = 
+  (case (aexp_simp a\<^sub>1, aexp_simp a\<^sub>2) of 
+    (N n\<^sub>1, N n\<^sub>2) \<Rightarrow> if n\<^sub>1 = n\<^sub>2 then PTrue else PFalse 
+  | (a\<^sub>1', a\<^sub>2') \<Rightarrow> PAtom (Equal a\<^sub>1' a\<^sub>2'))"
+| "pred_simp (PAtom (Not b)) =
+     (case bexp_simp (Not b) of
+        Bc True  \<Rightarrow> PTrue
+      | Bc False \<Rightarrow> PFalse
+      | b'       \<Rightarrow> PAtom b')"
+| "pred_simp (PAtom (And b1 b2)) =
+     (case bexp_simp (And b1 b2) of
+        Bc True  \<Rightarrow> PTrue
+      | Bc False \<Rightarrow> PFalse
+      | b'       \<Rightarrow> PAtom b')"
+
+
+(*
+fun wp_calc :: "com \<Rightarrow> post' \<Rightarrow> pred" where
+  "wp_calc SKIP (OK' Q) = Q"
+| "wp_calc (x ::= a) (OK' Q) = (subst_pred Q x a)"
+| "wp_calc (c1;;c2) (OK' Q) = (wp_calc c1 (OK' (wp_calc c2 (OK' Q))))"
+| "wp_calc (c1 || c2) (OK' Q) =
+     POr
+       (wp_calc c1 (OK' (wp_calc (c1' || c2) (OK' Q))))
+       (wp_calc c2 (OK' (wp_calc (c1 || c2') (OK' Q))))"
+*)
+
+type_synonym while_limit = "com \<Rightarrow> (nat \<times> nat)"
+
+datatype trace =
+    BigStep com
+  | ParLeft com com
+  | ParRight com com
+  | SelectTrace bexp com
+  | AssignNDTrace aexp
+  | SeqTrace trace trace
+  | TraceList "trace list"
+  | IfTrace bexp bool trace
+  | IterationTrace nat trace trace
+  | IterationLimitTrace nat
+  | IterationRemaining nat
+
+fun wp_calc ::
+  "nat \<Rightarrow> while_limit \<Rightarrow> com \<Rightarrow> post' \<Rightarrow> (pred \<times> trace) list"
+where
+
+  "wp_calc 0 w c (OK' Q) = []"
+
+| "wp_calc 0 w c (ER' Q) = []"
+
+| "wp_calc (Suc n) w SKIP (OK' Q) =
+     [(Q, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w SKIP (ER' Q) =
+     [(PFalse, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w ABORT (OK' Q) =
+     [(PFalse, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w ABORT (ER' Q) =
+     [(Q, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w (x ::= a) (OK' Q) =
+     [(subst_pred Q x a, BigStep (x ::= a))]"
+
+| "wp_calc (Suc n) w (x ::= a) (ER' Q) =
+     [(PFalse, BigStep (x ::= a))]"
+
+| "wp_calc (Suc n) w (c1;;c2) (OK' Q) =
+    concat (map
+      (\<lambda>(p2,t2).
+        map
+          (\<lambda>(p1,t1).
+            (p1, SeqTrace t1 t2))
+          (wp_calc n w c1 (OK' p2)))
+      (wp_calc n w c2 (OK' Q)))"
+
+| "wp_calc (Suc n) w (SELECT S) (OK' Q) =
+    
+      (concat (map
+        (\<lambda>(b,c).
+          map
+            (\<lambda>(p,t).
+              (pred_simp (PAnd (PAtom b) p),
+               SeqTrace (SelectTrace b c) t))
+            (wp_calc n w c (OK' Q)))
+        S))"
+
+| "wp_calc (Suc n) w (AssignND x []) (OK' Q) =
+    [(PFalse, BigStep (x ::= ND []))]"
+
+| "wp_calc (Suc n) w (AssignND x []) (ER' Q) =
+    [(Q, BigStep (x ::= ND []))]"
+
+| "wp_calc (Suc n) w (AssignND x (S1 # S)) (ER' Q) =
+    [(PFalse, BigStep (x ::= ND S))]"
+
+| "wp_calc (Suc n) w (AssignND x (S1 # S)) (OK' Q) =
+    concat (map
+      (\<lambda>a.
+        map
+          (\<lambda>(p,t).
+            (p, AssignNDTrace a))
+          (wp_calc n w (x ::= a) (OK' Q)))
+      (S1 # S))"
+
+| "wp_calc (Suc n) w (IF b THEN c1 ELSE c2) Q =
+    filter
+      (\<lambda>(p,t). pred_simp p \<noteq> PFalse)
+      (append
+        (map
+          (\<lambda>(p,t).
+            (pred_simp (PAnd (PAtom b) p),
+             IfTrace b True t))
+          (wp_calc n w c1 Q))
+        (map
+          (\<lambda>(p,t).
+            (pred_simp (PAnd (PAtom (Not b)) p),
+             IfTrace b False t))
+          (wp_calc n w c2 Q)))"
+
+| "wp_calc (Suc fuel) limits (WHILE b DO c) (OK' Q) =
+    (let
+       (i,n) = limits (WHILE b DO c);
+       xs = wp_calc fuel limits c (OK' Q)
+     in
+       concat (map
+         (\<lambda>(p,t).
+           (let
+              next_limits = limits((WHILE b DO c) := (Suc i,n));
+              Q' =
+                if i = 0 then
+                  pred_simp (PAnd (PAtom (Not b)) Q)
+                else
+                  pred_simp (PAnd (PAtom b) p)
+            in
+              if i > n then
+                [(PFalse, IterationLimitTrace n)]
+              else if Q' = PFalse then
+                [(PFalse, IterationRemaining (n-i))]
+              else
+              [(Q', IterationRemaining (n-i))] @
+                map
+                  (\<lambda>(p',t').
+                    (p', IterationTrace i t t'))
+                  (wp_calc fuel next_limits
+                    (WHILE b DO c)
+                    (OK' Q'))))
+         xs))"
+
+
+
+definition example :: com where
+  "example = (''x'' ::= Plus (V ''x'') (N 1));; (''y'' ::= N 10) || (''x'' ::= Plus (V ''x'') (N 40))"
+
+definition select_example :: "com" where
+  "select_example =
+     SelectND [
+       (Less (V ''y'') (N 10), ''x'' ::= N 1),
+       (Bc True, ''x'' ::= N 10),
+       (Bc True, ''x'' ::= N 100)
+     ]"
+
+definition assignND_example :: "com" where
+  "assignND_example =
+     AssignND ''x'' [N 1, N 2, N 3]"
+
+definition AS_example :: "com" where
+  "AS_example =
+     AssignND ''x'' [N 5,N 10];;
+     SelectND [
+        (Equal (V ''x'') (N 5), ''y'' ::= N 2),
+        (Equal (V ''x'') (N 10), ''y'' ::= N 11)
+    ] 
+  "
+
+
+definition if_example :: "com" where
+  "if_example =
+     AssignND ''x'' [Plus (V ''x'') (N 5), Plus (V ''x'') (N 8)];;
+     IF Less (V ''x'') (N 10)
+     THEN ''y'' ::= N 1
+     ELSE ''y'' ::= N 20"
+
+definition while_example :: com where
+  "while_example =
+     WHILE Less (V ''x'') (N 10)
+     DO ''x'' ::= Plus (V ''x'') (N 2)"
+
+definition aQ :: post' where 
+  "aQ = OK' (PAtom (Less (N 9) (V ''x'')))"
+
+
+
+value "
+  map
+    (\<lambda>(p,t). (pred_simp p, t))
+    (wp_calc 10
+      (\<lambda>_. (0, 3))
+      ((''y'' ::= (V ''x'')) ;;
+      (WHILE (Less (V ''y'') (N 3))
+         DO AssignND ''y''
+              [Plus (V ''y'') (N 1),
+               Plus (V ''y'') (N 2)]))
+      (OK' (PAtom (Less (V ''x'') (N 5)))))"
+
+
+value "(pred_simp (fst (wp_calc 100 while_example aQ)),
+        snd (wp_calc 100 while_example aQ))"
 
 end

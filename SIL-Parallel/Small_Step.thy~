@@ -17,8 +17,8 @@ Abort: "(ABORT, sOK s) \<rightarrow> (SKIP, sER s)" |
 
 Assign:  "(x ::= a, sOK s) \<rightarrow> (SKIP, sOK (s(x := aval a s)))" |
 
-AssignND: "v \<in> S \<Longrightarrow> (x ::= ND S, sOK s) \<rightarrow> (SKIP, sOK (s(x := aval v s)))" |
-AssignNDEmpty: "(x ::= ND {}, sOK s) \<rightarrow> (ABORT, sOK s)" |
+AssignND: "v \<in> set S \<Longrightarrow> (x ::= ND S, sOK s) \<rightarrow> (SKIP, sOK (s(x := aval v s)))" |
+AssignNDEmpty: "(x ::= ND [], sOK s) \<rightarrow> (ABORT, sOK s)" |
 
 Seq1:    "(SKIP;;c\<^sub>2, sOK s) \<rightarrow> (c\<^sub>2, sOK s)" |
 Seq2:    "(c\<^sub>1,sOK s) \<rightarrow> (c\<^sub>1',s') \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,sOK s) \<rightarrow> (c\<^sub>1';;c\<^sub>2,s')" |
@@ -379,9 +379,9 @@ apply(simp add: final_def)
      apply blast
     apply blast
     apply blast
-  defer
+  apply blast
   apply (metis ex_in_conv small_step.AssignND small_step.AssignNDEmpty)
-  by blast
+  sorry
 
 lemma finalD_er: "final (c,sER s) \<Longrightarrow> c = SKIP"
 apply(simp add: final_def)

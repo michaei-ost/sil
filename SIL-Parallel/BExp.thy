@@ -2,14 +2,15 @@ subsection "Boolean Expressions"
 
 theory BExp imports AExp begin
 
-datatype bexp = Bc bool | Not bexp | And bexp bexp | Less aexp aexp
+datatype bexp = Bc bool | Not bexp | And bexp bexp | Less aexp aexp | Equal aexp aexp 
 
 text_raw\<open>\snip{BExpbvaldef}{1}{2}{%\<close>
 fun bval :: "bexp \<Rightarrow> state \<Rightarrow> bool" where
 "bval (Bc v) s = v" |
 "bval (Not b) s = (\<not> bval b s)" |
 "bval (And b\<^sub>1 b\<^sub>2) s = (bval b\<^sub>1 s \<and> bval b\<^sub>2 s)" |
-"bval (Less a\<^sub>1 a\<^sub>2) s = (aval a\<^sub>1 s < aval a\<^sub>2 s)"
+"bval (Less a\<^sub>1 a\<^sub>2) s = (aval a\<^sub>1 s < aval a\<^sub>2 s)" |
+"bval (Equal a\<^sub>1 a\<^sub>2) s = (aval a\<^sub>1 s = aval a\<^sub>2 s)"
 text_raw\<open>}%endsnip\<close>
 
 value "bval (Less (V ''x'') (Plus (N 3) (V ''y'')))
@@ -24,10 +25,19 @@ text_raw\<open>\snip{BExplessdef}{0}{2}{%\<close>
 fun less :: "aexp \<Rightarrow> aexp \<Rightarrow> bexp" where
 "less (N n\<^sub>1) (N n\<^sub>2) = Bc(n\<^sub>1 < n\<^sub>2)" |
 "less a\<^sub>1 a\<^sub>2 = Less a\<^sub>1 a\<^sub>2"
+
+fun equal :: "aexp \<Rightarrow> aexp \<Rightarrow> bexp" where
+"equal (N n\<^sub>1) (N n\<^sub>2) = Bc(n\<^sub>1 = n\<^sub>2)" |
+"equal a\<^sub>1 a\<^sub>2 = Equal a\<^sub>1 a\<^sub>2"
 text_raw\<open>}%endsnip\<close>
 
 lemma [simp]: "bval (less a1 a2) s = (aval a1 s < aval a2 s)"
 apply(induction a1 a2 rule: less.induct)
+apply simp_all
+  done
+
+lemma [simp]: "bval (equal a1 a2) s = (aval a1 s = aval a2 s)"
+apply(induction a1 a2 rule: equal.induct)
 apply simp_all
 done
 
@@ -64,7 +74,8 @@ fun bsimp :: "bexp \<Rightarrow> bexp" where
 "bsimp (Bc v) = Bc v" |
 "bsimp (Not b) = not(bsimp b)" |
 "bsimp (And b\<^sub>1 b\<^sub>2) = and (bsimp b\<^sub>1) (bsimp b\<^sub>2)" |
-"bsimp (Less a\<^sub>1 a\<^sub>2) = less (asimp a\<^sub>1) (asimp a\<^sub>2)"
+"bsimp (Less a\<^sub>1 a\<^sub>2) = less (asimp a\<^sub>1) (asimp a\<^sub>2)" |
+"bsimp (Equal a\<^sub>1 a\<^sub>2) = equal (asimp a\<^sub>1) (asimp a\<^sub>2)"
 text_raw\<open>}%endsnip\<close>
 
 value "bsimp (And (Less (N 0) (N 1)) b)"

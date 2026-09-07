@@ -23,9 +23,9 @@ tAbort: "\<turnstile> \<langle>P\<rangle> ABORT \<langle>ER P\<rangle>"  |
 
 tAssign:  "\<turnstile> \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<langle>OK P\<rangle>"  |
 
-tAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<langle>OK P\<rangle>"  |
+tAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> set vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<langle>OK P\<rangle>"  |
 
-tAssignNDER:  "\<turnstile> \<langle>P\<rangle> x ::= ND {} \<langle>ER P\<rangle>"  |
+tAssignNDER:  "\<turnstile> \<langle>P\<rangle> x ::= ND [] \<langle>ER P\<rangle>"  |
 
 tSeqOK: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile> \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
       \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>R\<rangle>"  |

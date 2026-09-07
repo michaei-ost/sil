@@ -34,8 +34,8 @@ lemma sil_while_sound_er:
   done
 
 lemma disjunction_sound:
-  assumes hP: "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
-      and hR: "\<Turnstile> \<langle>R\<rangle> c \<langle>Q\<rangle>"
+  assumes hP: "\<Turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>Q\<rangle>"
+      and hR: "\<Turnstile>\<^sub>b \<langle>R\<rangle> c \<langle>Q\<rangle>"
   shows
     "case Q of
        OK x \<Rightarrow>
@@ -49,7 +49,7 @@ lemma disjunction_sound:
 using SIL_valid_def hP hR by force
 
 lemma sil_sound: 
-  "\<turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle>c\<langle>R\<rangle>"
+  "\<turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile>\<^sub>b \<langle>P\<rangle>c\<langle>R\<rangle>"
   unfolding SIL_valid_def
   apply (induction rule: SIL.induct; blast?)
   apply fastforce

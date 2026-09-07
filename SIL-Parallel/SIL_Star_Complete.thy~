@@ -2,6 +2,9 @@ theory SIL_Star_Complete
 imports SIL_Star_WP SIL_Star_Sound SIL_Big_Step_Complete
 begin
 
+thm one_step_post
+thm tParallelL
+
 lemma ParND_is_pre:
   assumes IH1: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>1 Q\<rangle> c\<^sub>1 \<langle>Q\<rangle>"
       and IH2: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>2 Q\<rangle> c\<^sub>2 \<langle>Q\<rangle>"
@@ -9,6 +12,74 @@ lemma ParND_is_pre:
       and "c\<^sub>2 \<noteq> SKIP"
     shows "\<turnstile> \<langle>wp (c\<^sub>1 || c\<^sub>2) Q\<rangle> c\<^sub>1 || c\<^sub>2 \<langle>Q\<rangle>"
   sorry
+
+primrec While_Step :: "nat \<Rightarrow> post \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> state \<Rightarrow> bool" where
+  "While_Step 0 Q b c s = (case Q of
+                  OK Q' \<Rightarrow> Q' s \<and> \<not> bval b s
+                | ER Q' \<Rightarrow> Q' s)"
+| "While_Step (Suc n) Q b c s = (case Q of
+                  OK Q' \<Rightarrow> wp c (OK (While_Step n Q b c)) s \<and> bval b s
+                | ER Q' \<Rightarrow> (if n = 0
+                            then wp c (ER (While_Step n Q b c)) s \<and> bval b s
+                            else wp c (OK (While_Step n Q b c)) s \<and> bval b s))"
+
+thm wp_Seq_OK
+
+lemma pre_equals: 
+  assumes "wp (WHILE b DO c) (OK Q) s"
+  shows "\<exists>n. (While_Step n (OK Q) b c) s"
+proof-
+  have h0: "bval b s \<Longrightarrow> wp (c;; WHILE b DO c) (OK Q) s"
+    by (metis assms wp_While_True)
+  have h1: "bval b s \<Longrightarrow> wp c (OK (wp (WHILE b DO c) (OK Q))) s"
+    by (metis h0 wp_Seq_OK)
+  have h2: "bval b s \<Longrightarrow> (\<exists>n. (wp c (OK (While_Step n (OK Q) b c)) s))" sledgehammer
+  oops
+
+lemma While_is_pre:
+  assumes "\<And>Q. \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+  shows "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> WHILE b DO c  \<langle>Q\<rangle>"
+proof(cases Q)
+  define Q\<^sub>n where "Q\<^sub>n = (\<lambda>n s. While_Step n Q b c s )"
+  case (OK x)
+  have h0': "\<forall>n s. Q\<^sub>n (Suc n) s \<longrightarrow> wp c (OK (Q\<^sub>n n)) s"
+    using OK Q\<^sub>n_def While_Step_def by simp
+  have h0: "\<forall>n. \<turnstile> \<langle>Q\<^sub>n (Suc n)\<rangle> c  \<langle>OK (Q\<^sub>n n)\<rangle>"
+    using assms SIL_Star.strengthen_pre_ok h0' by blast
+  have h1: "\<forall>n s. Q\<^sub>n (Suc n) s \<longrightarrow> bval b s" using OK Q\<^sub>n_def While_Step_def by simp
+  have h2: "\<forall>s. Q\<^sub>n 0 s \<longrightarrow> \<not>bval b s"  using OK Q\<^sub>n_def While_Step_def by simp
+  have h3: "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n n) s)\<rangle> WHILE b DO c \<langle>OK (Q\<^sub>n 0)\<rangle>"
+    using h0 h1 h2 SIL_Star.tWhileOK by blast
+  have h4: "\<forall>s. wp (WHILE b DO c) Q s \<longrightarrow>(\<exists>n. (Q\<^sub>n n) s)"
+    using Q\<^sub>n_def pre_equals OK by simp
+  have h5': "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n n) s)\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    using OK SIL_Star.weaken_post_ok Q\<^sub>n_def While_Step_def h3 by simp
+  have h5: "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    using h5' h4 tConseqOK OK by simp
+  then show ?thesis by simp
+next
+  define Q\<^sub>n where "Q\<^sub>n = (\<lambda>n s. While_Step n Q b c s )"
+  case (ER x)
+  have h0': "\<forall>n s. Q\<^sub>n (Suc (Suc n)) s \<longrightarrow> wp c (OK (Q\<^sub>n (Suc n))) s"
+    using ER Q\<^sub>n_def While_Step_def  by simp
+  have h0: "\<forall>n. \<turnstile> \<langle>Q\<^sub>n (Suc (Suc n))\<rangle> c  \<langle>OK (Q\<^sub>n (Suc n))\<rangle>"
+    using assms SIL_Star.strengthen_pre_ok h0' by blast
+  have h1': "\<forall>s. Q\<^sub>n 1 s \<longrightarrow> wp c (ER (Q\<^sub>n 0)) s"
+    using ER Q\<^sub>n_def While_Step_def by simp
+  have h1: "\<turnstile> \<langle>Q\<^sub>n 1\<rangle> c \<langle>ER (Q\<^sub>n 0)\<rangle>"  using ER Q\<^sub>n_def While_Step_def
+    using assms h1' tConseqER by blast
+  have h2: "\<forall>n s. Q\<^sub>n (Suc n) s \<longrightarrow> bval b s" using ER Q\<^sub>n_def While_Step_def by simp
+  have h3: "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n (Suc n)) s)\<rangle> WHILE b DO c \<langle>ER (Q\<^sub>n 0)\<rangle>"
+    using h0 h1 h2 SIL_Star.tWhileER by simp
+  have h4: "\<forall>s. wp (WHILE b DO c) Q s \<longrightarrow> (\<exists>n. (Q\<^sub>n (Suc n)) s)" 
+    sorry
+  have h5': "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n (Suc n)) s)\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    using ER SIL_Star.weaken_post_er Q\<^sub>n_def While_Step_def h3 by simp
+  have h5: "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> WHILE b DO c \<langle>Q\<rangle>"
+    using  h5' h4 ER SIL_Star.strengthen_pre by auto
+  then show ?thesis by simp
+qed
+ 
 
 lemma SelectND_is_pre:
   assumes IH: "\<And>b c Q. (b,c) \<in> set bs \<Longrightarrow> \<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
@@ -110,10 +181,7 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
       by (simp add: SIL_Star_Complete.SelectND_is_pre)
   next
     case (While b c)
-    then show ?case
-      apply (cases Q)
-       apply clarsimp
-      apply (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: small_step.induct)
+    then show ?case by (metis local.While While_is_pre)
   next 
     case (Par c1 c2)
     then show ?case

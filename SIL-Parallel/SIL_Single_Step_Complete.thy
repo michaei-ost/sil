@@ -45,10 +45,12 @@ proof(intro allI)
       by (smt (verit, ccfv_SIG) assms(1) com.inject(3) h2 sSeq strengthen_pre)
     have h4: "\<turnstile> \<langle>wp_single (c\<^sub>1;;c\<^sub>2) c' Q\<rangle> (c\<^sub>1;;c\<^sub>2) \<leadsto> c' \<langle>Q\<rangle>"
       apply(cases Q)
-      using wp_single_Seq_OK False apply (smt (verit, del_insts) Pair_inject SIL_Single_Step.post.simps(5) Small_Step.SeqE
-          Small_Step.post.distinct(1) h3 strengthen_pre wp_single_def)
-      using wp_single_Seq_OK False by (smt (verit, ccfv_SIG) Pair_inject SIL_Single_Step.post.simps(6) Small_Step.SeqE
-          Small_Step.post.distinct(1) h3 sConseqER wp_single_def)
+       apply clarsimp
+      apply (smt (verit, ccfv_threshold) Big_Step.AbortE False Pair_inject Small_Step.SeqE h3
+          isSequential.simps(7) post.simps(5) small_step.Abort small_to_big_single_ok strengthen_pre
+          wp_single_def)
+      apply clarsimp
+      sorry
     then show ?thesis by auto
   qed
 qed
@@ -106,24 +108,24 @@ proof(cases Q)
   thm sParallelSkipL
   thm sParallelSkipR
   fix c\<^sub>1' c\<^sub>2'
-  have h0: "\<turnstile> \<langle>wp_single c\<^sub>1 c\<^sub>1' Q\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle>"
-    using sParallelL assms(1) by simp
-  have h0': "\<turnstile> \<langle>wp_single c\<^sub>2 c\<^sub>2' Q\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1||c\<^sub>2' \<langle>Q\<rangle>"
-    using sParallelR assms(2) by simp
-  have h1: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h0: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c\<^sub>2 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle>"
+    using sParallelL assms(1) by (metis (mono_tags, lifting) sSubstituteCom strengthen_pre)
+  have h0': "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c\<^sub>1 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1||c\<^sub>2' \<langle>Q\<rangle>"
+    using sParallelR assms(2) by (metis (mono_tags, lifting) sSubstituteCom strengthen_pre)
+  have h1: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2 \<and> c\<^sub>2 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     by (smt (verit, best) h0 sFalsePre strengthen_pre)
-  have h2: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h2: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2 \<and> c\<^sub>2 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using h1 strengthen_pre by (smt (verit, ccfv_SIG) assms(1) com.inject(7) sParallelL)
-  have h3: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2'\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
-    by (metis (mono_tags, lifting) h0' h1 strengthen_pre)
-  have h4: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2'\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h3: " \<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2' \<and> c\<^sub>1 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+    by (metis (mono_tags, lifting) h0' sSubstituteCom strengthen_pre)
+  have h4: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2' \<and> c\<^sub>1 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using h3 strengthen_pre by (smt (verit, ccfv_SIG) assms(2) com.inject(7) sParallelR)
   have h5: "\<turnstile> \<langle>\<lambda>s. Q' s \<and> (c' = c\<^sub>1) \<and> (c\<^sub>2 = SKIP)\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using sSubstituteCom sParallelSkipR OK by (metis (mono_tags, lifting) strengthen_pre)
   have h6: "\<turnstile> \<langle>\<lambda>s. Q' s \<and> (c' = c\<^sub>2) \<and> (c\<^sub>1 = SKIP)\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using sSubstituteCom sParallelSkipL OK by (metis (mono_tags, lifting) strengthen_pre)
-  have h7: "\<turnstile> \<langle>\<lambda>s. (\<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2) 
-            \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2')
+  have h7: "\<turnstile> \<langle>\<lambda>s. (\<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2 \<and> c\<^sub>2 \<noteq> SKIP) 
+            \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2' \<and> c\<^sub>1 \<noteq> SKIP)
             \<or> (Q' s \<and> (c' = c\<^sub>2) \<and> (c\<^sub>1 = SKIP))
             \<or> (Q' s \<and> (c' = c\<^sub>2) \<and> (c\<^sub>1 = SKIP))
 \<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
@@ -133,20 +135,22 @@ proof(cases Q)
 next
   case (ER Q')
   fix c\<^sub>1' c\<^sub>2'
-  have h0: "\<turnstile> \<langle>wp_single c\<^sub>1 c\<^sub>1' Q\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle>"
-    using sParallelL assms(1) by simp
-  have h0': "\<turnstile> \<langle>wp_single c\<^sub>2 c\<^sub>2' Q\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1||c\<^sub>2' \<langle>Q\<rangle>"
-    using sParallelR assms(2) by simp
-  have h1: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h0: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c\<^sub>2 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle>"
+    using sParallelL assms(1)
+    by (metis (mono_tags, lifting) sSubstituteCom strengthen_pre)
+  have h0': "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c\<^sub>1 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1||c\<^sub>2' \<langle>Q\<rangle>"
+    using sParallelR assms(2)
+    by (metis (mono_tags, lifting) sSubstituteCom strengthen_pre)
+  have h1: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2 \<and> c\<^sub>2 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     by (smt (verit, best) h0 sFalsePre strengthen_pre)
-  have h2: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h2: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2 \<and> c\<^sub>2 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using h1 strengthen_pre by (smt (verit, ccfv_SIG) assms(1) com.inject(7) sParallelL)
-  have h3: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2'\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h3: "\<turnstile> \<langle>\<lambda>s. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2' \<and> c\<^sub>1 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     by (metis (mono_tags, lifting) h0' h1 strengthen_pre)
-  have h4: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2'\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h4: "\<turnstile> \<langle>\<lambda>s. \<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2' \<and> c\<^sub>1 \<noteq> SKIP\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using h3 strengthen_pre by (smt (verit, ccfv_SIG) assms(2) com.inject(7) sParallelR)
-  have h5: "\<turnstile> \<langle>\<lambda>s. (\<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2) 
-            \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2')\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
+  have h5: "\<turnstile> \<langle>\<lambda>s. (\<exists>c\<^sub>1'.  wp_single c\<^sub>1 c\<^sub>1' Q s \<and> c' = c\<^sub>1'||c\<^sub>2 \<and> c\<^sub>2 \<noteq> SKIP) 
+            \<or> (\<exists>c\<^sub>2'. wp_single c\<^sub>2 c\<^sub>2' Q s \<and> c' = c\<^sub>1||c\<^sub>2' \<and> c\<^sub>1 \<noteq> SKIP)\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c' \<langle>Q\<rangle>"
     using h2 h4 sDisjunction by auto
   then show ?thesis using wp_single_Par_ER ER by (smt (verit, best) sConseqER)
 qed

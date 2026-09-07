@@ -28,11 +28,11 @@ lemma wp_single_Assign_OK: "wp_single (x ::= a) c' (OK Q) =
 lemma wp_single_Assign_ER: "wp_single (x ::= a) c' (ER Q) =(\<lambda>s. False)"
   unfolding wp_single_def by fastforce
 
-lemma wp_single_AssignND_OK: "A \<noteq> {} \<Longrightarrow> wp_single (x ::= ND A) c' (OK Q) = 
-  (\<lambda>s. c' = SKIP \<and> (\<exists>a \<in> A. Q(s(x := aval a s))))"
+lemma wp_single_AssignND_OK: "A \<noteq> [] \<Longrightarrow> wp_single (x ::= ND A) c' (OK Q) = 
+  (\<lambda>s. c' = SKIP \<and> (\<exists>a \<in> set A. Q(s(x := aval a s))))"
   unfolding wp_single_def by fastforce
 
-lemma wp_single_AssignND_Empty_OK: "wp_single (x ::= ND {}) c' (OK Q) = 
+lemma wp_single_AssignND_Empty_OK: "wp_single (x ::= ND []) c' (OK Q) = 
   (\<lambda>s. c' = ABORT \<and> Q s)"
   unfolding wp_single_def by fastforce
 
