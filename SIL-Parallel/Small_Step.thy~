@@ -379,9 +379,11 @@ apply(simp add: final_def)
      apply blast
     apply blast
     apply blast
-  apply blast
-  apply (metis ex_in_conv small_step.AssignND small_step.AssignNDEmpty)
-  sorry
+   apply blast
+  apply(case_tac x2)
+apply blast
+by fastforce
+
 
 lemma finalD_er: "final (c,sER s) \<Longrightarrow> c = SKIP"
 apply(simp add: final_def)

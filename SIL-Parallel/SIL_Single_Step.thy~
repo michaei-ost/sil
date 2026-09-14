@@ -26,9 +26,9 @@ sAbort: "\<turnstile> \<langle>P\<rangle> ABORT \<leadsto> SKIP \<langle>ER P\<r
 
 sAssign:  "\<turnstile> \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<leadsto> SKIP \<langle>OK P\<rangle>"  |
 
-sAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<leadsto> SKIP \<langle>OK P\<rangle>"  |
+sAssignNDOK:  "\<turnstile> \<langle>\<lambda>s. (\<exists>v \<in> set vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<leadsto> SKIP \<langle>OK P\<rangle>"  |
 
-sAssignNDEmpty:  "\<turnstile> \<langle>P\<rangle> x ::= ND {} \<leadsto> ABORT \<langle>OK P\<rangle>"  |
+sAssignNDEmpty:  "\<turnstile> \<langle>P\<rangle> x ::= ND [] \<leadsto> ABORT \<langle>OK P\<rangle>"  |
 
 sSeq: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1' \<langle>R\<rangle>\<rbrakk>
       \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<leadsto> c\<^sub>1';;c\<^sub>2 \<langle>R\<rangle>"  |

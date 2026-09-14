@@ -322,6 +322,7 @@ datatype pred =
   | PAnd pred pred
   | POr pred pred
   | PAtom bexp
+  | PComEq com com
 
 fun pred_sem :: "pred \<Rightarrow> state \<Rightarrow> bool" where
   "pred_sem PTrue s = True"
@@ -332,6 +333,7 @@ fun pred_sem :: "pred \<Rightarrow> state \<Rightarrow> bool" where
 | "pred_sem (POr p q) s =
      (pred_sem p s \<or> pred_sem q s)"
 | "pred_sem (PAtom b) s = bval b s"
+| "pred_sem (PComEq c1 c2) s = (\<lambda>s. c1 = c2) s"
 
 datatype post' =
     OK' pred
@@ -438,19 +440,157 @@ fun wp_calc :: "com \<Rightarrow> post' \<Rightarrow> pred" where
        (wp_calc c2 (OK' (wp_calc (c1 || c2') (OK' Q))))"
 *)
 
+fun next_com :: "com  \<Rightarrow> com list" where
+
+  "next_com SKIP = []"
+
+| "next_com ABORT = [SKIP]"
+
+| "next_com (x ::= a) = [SKIP]"
+
+| "next_com (x ::= ND  a) = [SKIP]"
+
+| "next_com (IF b THEN c1 ELSE c2) = [c1, c2, SKIP]"
+
+| "next_com (WHILE b DO c) = [IF b THEN c;; WHILE b DO c ELSE SKIP, SKIP]"
+
+| "next_com (SELECT S) = map snd S @ [ABORT, SKIP]"
+
+| "next_com (c1;;c2) = 
+    [SKIP] @ (if c1 = SKIP then
+       [c2]
+     else
+       map (\<lambda>c1'. c1';;c2) (next_com c1))" 
+
+| "next_com (c1 || c2) =
+     [SKIP] @ (if c2 = SKIP then
+        [c1]
+      else
+        map (\<lambda>c1'. c1' || c2) (next_com c1))
+     @
+     (if c1 = SKIP then
+        [c2]
+      else
+        map (\<lambda>c2'. c1 || c2') (next_com c2))"
+
+
 type_synonym while_limit = "com \<Rightarrow> (nat \<times> nat)"
 
 datatype trace =
     BigStep com
-  | ParLeft com com
-  | ParRight com com
+  | ParLeft com com trace
+  | ParRight com com trace
   | SelectTrace bexp com
   | AssignNDTrace aexp
   | SeqTrace trace trace
   | TraceList "trace list"
   | IfTrace bexp bool trace
-  | IterationTrace nat trace
+  | IterationTrace nat trace trace
   | IterationLimitTrace nat
+  | IterationRemaining nat
+
+fun wp_single_calc :: 
+  "com \<Rightarrow> com \<Rightarrow> post' \<Rightarrow> pred list" 
+where
+  "wp_single_calc SKIP c' (OK' Q) =
+     [PFalse]"
+
+| "wp_single_calc SKIP c' (ER' Q) =
+     [PFalse]"
+
+| "wp_single_calc ABORT c' (OK' Q) =
+     [PFalse]"
+
+| "wp_single_calc ABORT c' (ER' Q) =
+     [PAnd (PComEq c' SKIP) Q]"
+
+| "wp_single_calc (x ::= a) c' (OK' Q) =
+     [PAnd (PComEq c' SKIP) (subst_pred Q x a)]"
+
+| "wp_single_calc (x ::= a) c' (ER' Q) =
+     [PFalse]"
+
+| "wp_single_calc (x ::= ND A) c' (OK' Q) =
+     (if A = [] then
+        [PAnd (PComEq c' ABORT) Q]
+      else
+        map (\<lambda>a.
+          PAnd (PComEq c' SKIP)
+               (subst_pred Q x a))
+          A)"
+
+| "wp_single_calc (x ::= ND A) c' (ER' Q) =
+     [PFalse]"
+
+| "wp_single_calc (c1;;c2) c' (OK' Q) =
+    (case c1 of
+       SKIP \<Rightarrow>
+         [PAnd (PComEq c' c2) Q]
+     | _ \<Rightarrow>
+         concat (map
+           (\<lambda>c1'.
+             map
+               (\<lambda>p.
+                 PAnd
+                   (PComEq c' (c1';;c2))
+                   p)
+               (wp_single_calc c1 c1' (OK' Q)))
+           (next_com c1)))"
+
+| "wp_single_calc (c1;;c2) c' (ER' Q) =
+    (case c1 of
+       SKIP \<Rightarrow>
+         []
+     | _ \<Rightarrow>
+         concat (map
+           (\<lambda>c1'.
+             map
+               (\<lambda>p.
+                 PAnd
+                   (PComEq c' (c1';;c2))
+                   p)
+               (wp_single_calc c1 c1' (ER' Q)))
+           (next_com c1)))"
+
+| "wp_single_calc (IF b THEN c1 ELSE c2) c' (OK' Q) =
+    [PAnd (PAnd (PAtom b) (PComEq c' c1)) Q,
+     PAnd (PAnd (PAtom (Not b)) (PComEq c' c2)) Q]"
+
+| "wp_single_calc (IF b THEN c1 ELSE c2) c' (ER' Q) =
+    [PFalse]"
+
+| "wp_single_calc (WHILE b DO c) c' (OK' Q) =
+    [PAnd
+       (PComEq c' (IF b THEN c;;WHILE b DO c ELSE SKIP))
+       Q]"
+
+| "wp_single_calc (WHILE b DO c) c' (ER' Q) =
+    [PFalse]"
+
+| "wp_single_calc (SELECT S) c' (OK' Q) =
+    (let
+       none_enabled = (case S of
+         [] \<Rightarrow> Q
+       | (b,c)#S' \<Rightarrow>
+           PAnd (PAtom (Not b))
+             (case S' of
+                [] \<Rightarrow> Q
+              | (b',c')#S'' \<Rightarrow>
+                  PAnd (PAtom (Not b')) Q))
+     in
+       map
+         (\<lambda>(b,c).
+           PAnd (PAtom b)
+             (PAnd (PComEq c' c) Q))
+         S
+       @
+       [PAnd
+          none_enabled
+          (PAnd (PComEq c' ABORT) Q)])"
+
+| "wp_single_calc (SELECT S) c' (ER' Q) =
+    [PFalse]"
+
 
 fun wp_calc ::
   "nat \<Rightarrow> while_limit \<Rightarrow> com \<Rightarrow> post' \<Rightarrow> (pred \<times> trace) list"
@@ -458,11 +598,25 @@ where
 
   "wp_calc 0 w c (OK' Q) = []"
 
+| "wp_calc 0 w c (ER' Q) = []"
+
 | "wp_calc (Suc n) w SKIP (OK' Q) =
+     [(Q, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w SKIP (ER' Q) =
+     [(PFalse, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w ABORT (OK' Q) =
+     [(PFalse, BigStep SKIP)]"
+
+| "wp_calc (Suc n) w ABORT (ER' Q) =
      [(Q, BigStep SKIP)]"
 
 | "wp_calc (Suc n) w (x ::= a) (OK' Q) =
      [(subst_pred Q x a, BigStep (x ::= a))]"
+
+| "wp_calc (Suc n) w (x ::= a) (ER' Q) =
+     [(PFalse, BigStep (x ::= a))]"
 
 | "wp_calc (Suc n) w (c1;;c2) (OK' Q) =
     concat (map
@@ -472,6 +626,21 @@ where
             (p1, SeqTrace t1 t2))
           (wp_calc n w c1 (OK' p2)))
       (wp_calc n w c2 (OK' Q)))"
+
+| "wp_calc (Suc n) w (c1;;c2) (ER' Q) =
+    (let
+       xs = wp_calc n w c2 (ER' Q);
+       ys = wp_calc n w c1 (ER' Q)
+     in
+       concat (map
+          (\<lambda>(p2,t2).
+            map
+              (\<lambda>(p1,t1).
+                (p1, SeqTrace t1 t2))
+              (wp_calc n w c1 (OK' p2)))
+         xs)
+       @
+       ys)"
 
 | "wp_calc (Suc n) w (SELECT S) (OK' Q) =
     
@@ -484,16 +653,50 @@ where
             (wp_calc n w c (OK' Q)))
         S))"
 
-| "wp_calc (Suc n) w (AssignND x S) (OK' Q) =
+| "wp_calc (Suc n) w (SELECT S) (ER' Q) =
+    (let
+       no_selection =
+         (case S of
+            [] \<Rightarrow> Q
+          | (b,c)#S' \<Rightarrow>
+              PAnd (PAtom (Not b))
+                (case S' of
+                   [] \<Rightarrow> Q
+                 | (b',c')#S'' \<Rightarrow>
+                     PAnd (PAtom (Not b')) Q));
+
+       error_paths =
+         concat (map
+           (\<lambda>(b,c).
+             map
+               (\<lambda>(p,t).
+                 (pred_simp (PAnd (PAtom b) p),
+                  SeqTrace (SelectTrace b c) t))
+               (wp_calc n w c (ER' Q)))
+           S)
+     in
+       error_paths @
+       [(pred_simp no_selection, BigStep SKIP)])"
+
+| "wp_calc (Suc n) w (AssignND x []) (OK' Q) =
+    [(PFalse, BigStep (x ::= ND []))]"
+
+| "wp_calc (Suc n) w (AssignND x []) (ER' Q) =
+    [(Q, BigStep (x ::= ND []))]"
+
+| "wp_calc (Suc n) w (AssignND x (S1 # S)) (ER' Q) =
+    [(PFalse, BigStep (x ::= ND S))]"
+
+| "wp_calc (Suc n) w (AssignND x (S1 # S)) (OK' Q) =
     concat (map
       (\<lambda>a.
         map
           (\<lambda>(p,t).
             (p, AssignNDTrace a))
           (wp_calc n w (x ::= a) (OK' Q)))
-      S)"
+      (S1 # S))"
 
-| "wp_calc (Suc n) w (IF b THEN c1 ELSE c2) (OK' Q) =
+| "wp_calc (Suc n) w (IF b THEN c1 ELSE c2) Q =
     filter
       (\<lambda>(p,t). pred_simp p \<noteq> PFalse)
       (append
@@ -501,43 +704,105 @@ where
           (\<lambda>(p,t).
             (pred_simp (PAnd (PAtom b) p),
              IfTrace b True t))
-          (wp_calc n w c1 (OK' Q)))
+          (wp_calc n w c1 Q))
         (map
           (\<lambda>(p,t).
             (pred_simp (PAnd (PAtom (Not b)) p),
              IfTrace b False t))
-          (wp_calc n w c2 (OK' Q))))"
+          (wp_calc n w c2 Q)))"
 
 | "wp_calc (Suc fuel) limits (WHILE b DO c) (OK' Q) =
     (let
        (i,n) = limits (WHILE b DO c);
-       next_limits =
-         limits((WHILE b DO c) := (Suc i,n));
-       Q' =
-         if i = 0 then
-           pred_simp (PAnd (PAtom (Not b)) Q)
-         else
-           pred_simp (PAnd (PAtom b) Q)
+       xs = wp_calc fuel limits c (OK' Q)
      in
-       if i = n then
-         [(PFalse, IterationLimitTrace n)]
-       else if Q' = PFalse then
-         [(PFalse, IterationTrace i (BigStep c))]
-       else
-  (let
-     xs = wp_calc fuel limits c (OK' Q')
-   in
-     [(Q', IterationTrace i (BigStep c))] @
-     concat (map
-       (\<lambda>(p,t).
-         map
-           (\<lambda>(p',t').
-             (p', SeqTrace (IterationTrace i t) t'))
-           (wp_calc fuel next_limits
-             (WHILE b DO c)
-             (OK' Q')))
-       xs)))"
+       concat (map
+         (\<lambda>(p,t).
+           (let
+              next_limits = limits((WHILE b DO c) := (Suc i,n));
+              Q' =
+                if i = 0 then
+                  pred_simp (PAnd (PAtom (Not b)) Q)
+                else
+                  pred_simp (PAnd (PAtom b) p)
+            in
+              if i > n then
+                [(PFalse, IterationLimitTrace n)]
+              else if Q' = PFalse then
+                [(PFalse, IterationRemaining (n-i))]
+              else
+              [(Q', IterationRemaining (n-i))] @
+                map
+                  (\<lambda>(p',t').
+                    (p', IterationTrace i t t'))
+                  (wp_calc fuel next_limits
+                    (WHILE b DO c)
+                    (OK' Q'))))
+         xs))"
 
+| "wp_calc (Suc fuel) limits (WHILE b DO c) (ER' Q) =
+    (let
+       (i,n) = limits (WHILE b DO c);
+       xs = if i = 0 then wp_calc fuel limits c (ER' Q) else wp_calc fuel limits c (OK' Q)
+     in
+       concat (map
+         (\<lambda>(p,t).
+           (let
+              next_limits = limits((WHILE b DO c) := (Suc i,n));
+              Q' =
+                if i = 0 then
+                  pred_simp p
+                else
+                  pred_simp (PAnd (PAtom b) p)
+            in
+              if i > n then
+                [(PFalse, IterationLimitTrace n)]
+              else if Q' = PFalse then
+                [(PFalse, IterationRemaining (n-i))]
+              else
+              [(Q', IterationRemaining (n-i))] @
+                map
+                  (\<lambda>(p',t').
+                    (p', IterationTrace i t t'))
+                  (wp_calc fuel next_limits
+                    (WHILE b DO c)
+                    (OK' Q'))))
+         xs))"
+
+| "wp_calc (Suc n) w (c1 || c2) (OK' Q) =
+    (if c1 = SKIP then
+       wp_calc n w c2 (OK' Q)
+     else if c2 = SKIP then
+       wp_calc n w c1 (OK' Q)
+     else
+       (let
+          left_paths =
+            concat (map
+              (\<lambda>c1'.
+                concat (map
+                  (\<lambda>(p,t).
+                    map
+                      (\<lambda>p'.
+                        (p',
+                         ParLeft c1 (c1' || c2) t))
+                      (wp_single_calc c1 c1' (OK' p)))
+                  (wp_calc n w (c1' || c2) (OK' Q))))
+              (next_com c1));
+
+          right_paths =
+            concat (map
+              (\<lambda>c2'.
+                concat (map
+                  (\<lambda>(p,t).
+                    map
+                      (\<lambda>p'.
+                        (p',
+                         ParRight c2 (c1 || c2') t))
+                      (wp_single_calc c2 c2' (OK' p)))
+                  (wp_calc n w (c1 || c2') (OK' Q))))
+              (next_com c2))
+        in
+          left_paths @ right_paths))"
 
 
 definition example :: com where
@@ -584,17 +849,113 @@ definition aQ :: post' where
 
 value "
   map
-    (\<lambda>(p,t). (pred_simp p, t))
+    (\<lambda>(p,t). ( p, t))
     (wp_calc 10
-      (\<lambda>_. (0, 2))
-      (WHILE (Less (V ''x'') (N 3))
-         DO AssignND ''x''
-              [Plus (V ''x'') (N 1),
-               Plus (V ''x'') (N 2)])
-      (OK' (PAtom (Less (V ''x'') (N 4)))))"
+      (\<lambda>_. (0, 3))
+      ((''y'' ::= (V ''x'')) ;;
+      (WHILE (Less (V ''y'') (N 3))
+         DO AssignND ''y''
+              [Plus (V ''y'') (N 1),
+               Plus (V ''y'') (N 2)]))
+      (OK' (PAtom (Less (V ''x'') (N 5)))))"
+
+value "
+  map
+    (\<lambda>(p,t). (p, t))
+    (wp_calc 10
+      (\<lambda>_. (0, 3))
+      ((''x'' ::= (N 1)) ;;
+       AssignND ''y'' [])
+      (ER' (PAtom (Less (V ''y'') (N 5)))))"
 
 
-value "(pred_simp (fst (wp_calc 100 while_example aQ)),
-        snd (wp_calc 100 while_example aQ))"
+value "
+  map
+    (\<lambda>(p,t). (p, t))
+    (wp_calc 10
+      (\<lambda>_. (0, 3))
+      ((AssignND ''y'' []) ;;
+       (''x'' ::= (N 1)))
+      (ER' (PAtom (Less (V ''y'') (N 5)))))"
+
+value "
+  map
+    (\<lambda>(p,t). (p, t))
+    (wp_calc 10
+      (\<lambda>_. (0, 3))
+      (SELECT [
+        (Less (N 10) (N 5), ''x'' ::= N 1),
+        (Less (N 20) (N 5), ''x'' ::= N 2),
+        (Less (N 30) (N 5), ''x'' ::= N 3)
+      ])
+      (ER' (PAtom (Less (V ''x'') (N 10)))))"
+
+value "
+  map
+    (\<lambda>(p,t). (p, t))
+    (wp_calc 10
+      (\<lambda>_. (0, 3))
+      (SELECT [
+        (Less (V ''x'') (N 10),
+          AssignND ''y'' []),
+        (Less (V ''x'') (N 20),
+          ''y'' ::= N 2),
+        (Less (V ''x'') (N 30),
+          AssignND ''y'' [])
+      ])
+      (ER' (PAtom (Less (V ''y'') (N 5)))))"
+
+value "
+  map
+    (\<lambda>(p,t). (p,t))
+    (wp_calc 20
+      (\<lambda>_. (0,10))
+      (WHILE (Less (N 0) (N 1)) DO
+        ((''x'' ::= Plus (V ''x'') (N 1));;
+          IF (Less (V ''x'') (N 3))
+          THEN SKIP
+          ELSE AssignND ''y'' []))
+      (ER' PTrue))"
+
+value "
+  map
+    (\<lambda>(p,t). (p,t))
+    (wp_calc 20
+      (\<lambda>_. (0,10))
+      ((''x'' ::= N 1) || (''y'' ::= N 2))
+      (OK' PTrue))
+"
+
+value "
+  map
+    (\<lambda>(p,t). (p,t))
+    (wp_calc 20
+      (\<lambda>_. (0,10))
+      ((''x'' ::= N 1) || (''y'' ::= N 2))
+      (OK'
+        (PAnd
+          (PAtom (Less (N 0) (V ''x'')))
+          (PAtom (Less (N 0) (V ''y''))))))
+"
+
+value "
+  map
+    (\<lambda>(p,t). (p,t))
+    (wp_calc 10
+      (\<lambda>_. (0,10))
+      ((''x'' ::= ND [N 1, N 2, V ''x'']) || (''x'' ::= Plus (V ''x'') (N 10)))
+      (OK'
+        (PAtom (Equal (V ''x'') (N 11)))))
+"
+
+value "
+  wp_single_calc
+    (SELECT
+      [(Eq (V ''x'') (N 1), ''x'' ::= N 1),
+       (Eq (V ''x'') (N 10), ''x'' ::= N 10),
+       (Eq (V ''x'') (N 100), ''x'' ::= N 100)])
+    SKIP
+    (OK' (PAtom (Eq (V ''x'') (N 10))))
+"
 
 end
