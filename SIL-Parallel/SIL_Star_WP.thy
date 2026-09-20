@@ -3,6 +3,10 @@ theory SIL_Star_WP
 imports SIL_Star SIL_Big_Step_WP SIL_Single_Step_WP
 begin
 
+text\<open>Weakest precondition rules for SIL Star, Defined using 
+Small Step semantics. A weakest precondition for Parallel is included,
+however whether it is in fact a precondition cannot be proven.\<close>
+
 definition wp :: "com \<Rightarrow> post \<Rightarrow> assn" where
   "wp c R = (\<lambda>s. case R of
       OK Q \<Rightarrow> (\<exists>s'. (c,sOK s) \<rightarrow>* (SKIP,sOK s') \<and> Q s')

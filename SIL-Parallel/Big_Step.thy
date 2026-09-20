@@ -1,16 +1,20 @@
-(* Author: Gerwin Klein, Tobias Nipkow *)
-
-subsection "Big-Step Semantics of Commands"
+subsection "Big-Step Semantics of SIL Commands"
 
 theory Big_Step imports Com_SIL begin
 
 text \<open>
 The big-step semantics is a straight-forward inductive definition
-with concrete syntax. Note that the first parameter is a tuple,
-so the syntax becomes \<open>(c,s) \<Down> s'\<close>.
+with concrete syntax. Note that the first parameter is a tuple 
+representing the command to be executed in the current state.
+
+The second parameter is a tuple representing the end state, and
+whether it is a successful termination (True), or aborted error
+(False). So the syntax becomes \<open>(c,s) \<Down> (s',b)\<close>.
+
+While Parallel composition is included within the commands,
+it is not valid in big step semantics.
 \<close>
 
-text_raw\<open>\snip{BigStepdef}{0}{1}{%\<close>
 inductive
   big_step :: "com \<times> state \<Rightarrow> state \<times> bool \<Rightarrow> bool" (infix \<open>\<Down>\<close> 55)
 where
@@ -33,28 +37,6 @@ WhileBodyAborts:
 "\<lbrakk> bval b s\<^sub>1;  (c,s\<^sub>1) \<Down> (s\<^sub>2,False)\<rbrakk>  
 \<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Down> (s\<^sub>2,False)"
 print_theorems
- 
-text_raw\<open>}%endsnip\<close>
-
-text_raw\<open>\snip{BigStepEx}{1}{2}{%\<close>
-schematic_goal ex: "(''x'' ::= N 5;; ''y'' ::= V ''x'', s) \<Down> ?t"
-apply(rule SeqTrue)
-apply(rule Assign)
-apply simp
-apply(rule Assign)
-done
-text_raw\<open>}%endsnip\<close>
-
-thm ex[simplified]
-
-text\<open>We want to execute the big-step rules:\<close>
-
-code_pred big_step .
-
-text\<open>For inductive definitions we need command
-       \texttt{values} instead of \texttt{value}.\<close>
-
-text\<open>Proof automation:\<close>
 
 text \<open>The introduction rules are good for automatically
 construction small program executions. The recursive cases
@@ -80,7 +62,6 @@ text \<open>
 @{thm [display] big_step_induct [no_vars]}
 \<close>
 
-
 subsection "Rule inversion"
 
 text\<open>What can we deduce from \<^prop>\<open>(SKIP,s) \<Down> t\<close> ?
@@ -90,13 +71,6 @@ inductive_cases SkipE[elim!]: "(SKIP,s) \<Down> t"
 thm SkipE
 inductive_cases AbortE[elim!]: "(ABORT,s) \<Down> t"
 thm AbortE
-
-text\<open>This is an \emph{elimination rule}. The [elim] attribute tells auto,
-blast and friends (but not simp!) to use it automatically; [elim!] means that
-it is applied eagerly.
-
-Similarly for the other commands:\<close>
-
 inductive_cases AssignE[elim!]: "(x ::= a,s) \<Down> t"
 thm AssignE
 inductive_cases AssignNDE[elim!]: "(x ::= ND vals, s) \<Down> t"
@@ -109,19 +83,18 @@ inductive_cases SelectNDE[elim!]: "(SELECT bs, s) \<Down> t"
 thm SelectNDE
 inductive_cases WhileE[elim]: "(WHILE b DO c,s) \<Down> t"
 thm WhileE
-text\<open>Only [elim]: [elim!] would not terminate.\<close>
 
 text\<open>An automatic example:\<close>
 
 lemma "(IF b THEN SKIP ELSE SKIP, s) \<Down> (t,a) \<Longrightarrow> t = s"
 by blast
 
-(* Using rule inversion to prove simplification rules: *)
 lemma assign_simp:
   "(x ::= a,s) \<Down> (s',True) \<longleftrightarrow> (s' = s(x := aval a s))"
   by auto
 
 text \<open>An example combining rule inversion and derivations\<close>
+
 lemma Seq_assoc:
   "(c1;; c2;; c3, s) \<Down> (s,b) \<longleftrightarrow> (c1;; (c2;; c3), s) \<Down> (s,b)" 
 by auto
@@ -172,9 +145,9 @@ lemma sim_trans: "c \<sim> c' \<Longrightarrow> c' \<sim> c'' \<Longrightarrow> 
 
 subsection "Execution is deterministic"
 
-text \<open>This proof is automatic.\<close>
+text \<open>Below defines a deterministic execution, proving that
+there can only be a single unique end-state to the execution\<close>
 
-(* you could define a (recursive) predicate for ND_free *)
 primrec nd_free :: "com \<Rightarrow> bool"
   where
     "nd_free SKIP = True"

@@ -5,6 +5,13 @@ begin
 thm one_step_post
 thm tParallelL
 
+lemma Sequential_Completeness:
+  assumes "isSequential c"
+  and "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
+shows "\<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
+  using big_iff_small sil_complete sorry
+
+
 lemma ParND_is_pre:
   assumes IH1: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>1 Q\<rangle> c\<^sub>1 \<langle>Q\<rangle>"
       and IH2: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>2 Q\<rangle> c\<^sub>2 \<langle>Q\<rangle>"
@@ -22,6 +29,10 @@ primrec While_Step :: "nat \<Rightarrow> post \<Rightarrow> bexp \<Rightarrow> c
                 | ER Q' \<Rightarrow> (if n = 0
                             then wp c (ER (While_Step n Q b c)) s \<and> bval b s
                             else wp c (OK (While_Step n Q b c)) s \<and> bval b s))"
+
+lemma wp_While_Q: 
+  shows "wp (WHILE b DO c) Q s = (\<exists>n. While_Step n Q b c s)"
+  sorry
 
 thm wp_Seq_OK
 
@@ -51,7 +62,7 @@ proof(cases Q)
   have h3: "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n n) s)\<rangle> WHILE b DO c \<langle>OK (Q\<^sub>n 0)\<rangle>"
     using h0 h1 h2 SIL_Star.tWhileOK by blast
   have h4: "\<forall>s. wp (WHILE b DO c) Q s \<longrightarrow>(\<exists>n. (Q\<^sub>n n) s)"
-    using Q\<^sub>n_def pre_equals OK by simp
+    using Q\<^sub>n_def OK wp_While_Q by blast
   have h5': "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n n) s)\<rangle> WHILE b DO c \<langle>Q\<rangle>"
     using OK SIL_Star.weaken_post_ok Q\<^sub>n_def While_Step_def h3 by simp
   have h5: "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> WHILE b DO c \<langle>Q\<rangle>"
@@ -72,7 +83,7 @@ next
   have h3: "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n (Suc n)) s)\<rangle> WHILE b DO c \<langle>ER (Q\<^sub>n 0)\<rangle>"
     using h0 h1 h2 SIL_Star.tWhileER by simp
   have h4: "\<forall>s. wp (WHILE b DO c) Q s \<longrightarrow> (\<exists>n. (Q\<^sub>n (Suc n)) s)" 
-    sorry
+    using Q\<^sub>n_def ER wp_While_Q sorry
   have h5': "\<turnstile> \<langle>\<lambda>s. (\<exists>n. (Q\<^sub>n (Suc n)) s)\<rangle> WHILE b DO c \<langle>Q\<rangle>"
     using ER SIL_Star.weaken_post_er Q\<^sub>n_def While_Step_def h3 by simp
   have h5: "\<turnstile> \<langle>wp (WHILE b DO c) Q\<rangle> WHILE b DO c \<langle>Q\<rangle>"
@@ -149,14 +160,14 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
     then show ?case 
       apply (cases Q)
        apply clarsimp
-      apply (cases "x2 = {}")
-      apply clarsimp
-      apply (metis tFalsePre)
-      using wp_AssignND_NonEmpty_OK apply (simp add: SIL_Star.tAssignNDOK)
-      apply (cases "x2 = {}")
+      apply (cases "x2 = []")
        apply clarsimp
-       apply (metis SIL_Star.tAssignNDER)
-     by (simp add: tFalsePre)
+      using big_iff_small_wp tFalsePre apply force
+      apply (simp add: SIL_Star_Valid_def Sequential_Completeness wp_def)
+      apply (cases "x2 = []")
+       apply clarsimp
+       apply (simp add: SIL_Star.tAssignNDER big_iff_small_wp)
+      using big_iff_small_wp tFalsePre by force
   next
     case (Seq c1 c2)
     then show ?case

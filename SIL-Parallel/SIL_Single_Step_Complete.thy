@@ -1,10 +1,11 @@
-subsection \<open>Soundness and Completeness\<close>
+subsection \<open>SIL Single Step Completeness\<close>
 
 theory SIL_Single_Step_Complete
 imports SIL_Single_Step SIL_Single_Step_WP SIL_Single_Step_Sound
 begin
 
-subsubsection "Soundness"
+text\<open>Proof of completeness of Single Step SIL, using the weakest precondition.
+Similar method to the SIL Big Step completeness proof.\<close>
 
 lemma seq_wp_single_is_pre:
   assumes "\<forall>c' .\<turnstile> \<langle>wp_single c\<^sub>1 c' Q\<rangle> c\<^sub>1 \<leadsto> c' \<langle>Q\<rangle>"
@@ -50,7 +51,9 @@ proof(intro allI)
           isSequential.simps(7) post.simps(5) small_step.Abort small_to_big_single_ok strengthen_pre
           wp_single_def)
       apply clarsimp
-      sorry
+      using Small_Step.SeqE isSequential.simps(7) small_to_big_single_er strengthen_pre
+          wp_single_def
+      by (smt (verit, ccfv_threshold) h3 post.simps(6) prod.inject sPost.distinct(1))
     then show ?thesis by auto
   qed
 qed
@@ -97,6 +100,8 @@ proof-
   show " \<turnstile> \<langle>wp_single (SELECT S) c' Q\<rangle>  SELECT S \<leadsto> c' \<langle>Q\<rangle>" 
     using h1 h2 sDisjunction wp_single_SelectND_OK Qeq by presburger
 qed
+
+text\<open>Parallel execution is included here, as it is part of small step semantics\<close>
 
 lemma par_wp_single_is_pre:
   assumes "\<forall>c' .\<turnstile> \<langle>wp_single c\<^sub>1 c' Q\<rangle> c\<^sub>1 \<leadsto> c' \<langle>Q\<rangle>"
@@ -155,10 +160,9 @@ next
   then show ?thesis using wp_single_Par_ER ER by (smt (verit, best) sConseqER)
 qed
 
-thm wp_single_Par_ER
 
-thm sParallelL
-thm sParallelR
+text\<open>Proof the the Weakest Precondition is a precondition\<close>
+
 lemma wp_single_is_pre: 
   "\<turnstile> \<langle>wp_single c c' Q\<rangle> c \<leadsto> c' \<langle>Q\<rangle>"
 proof(induction c arbitrary: Q c')
@@ -207,6 +211,7 @@ next
   then show ?case by (simp add: par_wp_single_is_pre)
 qed
 
+text\<open>Proof of completeness, given the weakest precondition is a precondition\<close>
 
 lemma valid_imp_wp_single: "\<Turnstile> \<langle>P\<rangle> c \<leadsto> c'\<langle>Q\<rangle> \<Longrightarrow>  \<forall>s. P s \<longrightarrow> wp_single c c' Q s"
   unfolding wp_single_def SIL_Single_Step_Valid_def

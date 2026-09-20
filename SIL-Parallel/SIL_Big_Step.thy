@@ -1,10 +1,8 @@
-(* Author: Tobias Nipkow *)
-
-section "SIL Logic"
-
-subsection "SIL Logic for Partial Correctness"
+section "SIL Logic for Big Step semantics - Total Corectness"
 
 theory SIL_Big_Step imports Big_Step begin
+
+text\<open>Utilizes both OK and Error End-States\<close>
 
 definition SIL_valid ::
   "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile>\<^sub>b (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
@@ -14,9 +12,7 @@ where
       OK Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c,s) \<Down> (t,True) \<and> Q t))
     | ER Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c,s) \<Down> (t,False) \<and> Q t)))"
 
-abbreviation state_subst :: "state \<Rightarrow> aexp \<Rightarrow> vname \<Rightarrow> state"
-  (\<open>_[_'/_]\<close> [1000,0,0] 999)
-where "s[a/x] == s(x := aval a s)"
+text\<open>Inductive definition of SIL rules for Big-Step semantics\<close>
 
 inductive
   SIL :: "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<turnstile>\<^sub>b (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
@@ -56,6 +52,14 @@ tSelectNDNP: (* No Path *)
 \<rbrakk>
    \<Longrightarrow> \<turnstile>\<^sub>b \<langle>P\<rangle> SELECT bs \<langle>ER P\<rangle>" |
 
+(*
+Total correctness rule for While loops. Guarantees termination by 
+establishing recursive lower-level variants. This rule solves 
+problems introduced by allowing non-deterministic selection
+within While loops that make an invariant impossible to establish, 
+but still allow possible terminating execution paths.
+*)
+
 tWhileOK: "
 \<lbrakk>
   \<And>n::nat. \<turnstile>\<^sub>b \<langle>Q (Suc n)\<rangle> c  \<langle>OK (Q n)\<rangle>; 
@@ -88,6 +92,9 @@ disjunction:  "\<lbrakk> \<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>Q\<
 lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeqOK tIf
 lemmas [intro!] = SIL.tSkip SIL.tAssign SIL.tSeqOK SIL.tIf
 
+text\<open>Helper lemmas using the consequence rule for strengthening
+the precondition, and weakening the post-condition.\<close>
+
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>R\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile>\<^sub>b \<langle>P'\<rangle> c \<langle>R\<rangle>"
   by (smt (verit, ccfv_SIG) conseqER conseqOK post.exhaust)
@@ -108,10 +115,7 @@ lemma weaken_post_er:
   "\<lbrakk> \<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>ER Q'\<rangle>"
   using conseqER by blast
 
-text\<open>The assignment and While rule are awkward to use in actual proofs
-because their pre and postcondition are of a very special form and the actual
-goal would have to match this form exactly. Therefore we derive two variants
-with arbitrary pre and postconditions.\<close>
+text\<open>A helper assignment lemma\<close>
 
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile>\<^sub>b \<langle>P\<rangle> x ::= a \<langle>OK Q\<rangle>"
   by (metis (lifting) conseqOK tAssign)

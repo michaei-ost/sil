@@ -1,8 +1,6 @@
-(* Author: Tobias Nipkow *)
+section "SIL Logic for Small Step (Star) Semantics"
 
-section "SIL Logic"
-
-subsection "SIL Logic for Partial Correctness"
+text\<open>This lines up with Big-Step semantics for SIL, with the addition of a paralell rule\<close>
 
 theory SIL_Star imports Small_Step SIL_Single_Step begin
 
@@ -45,6 +43,7 @@ tSelectND: "
 \<rbrakk>
    \<Longrightarrow> \<turnstile> \<langle>P\<rangle> SELECT bs \<langle>Q\<rangle>" |
 
+
 tSelectNDNP: (* No Path *)
 "
 \<lbrakk>
@@ -80,6 +79,13 @@ tFalsePre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<langle>Q\<rangl
 
 tDisjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<langle>Q\<rangle> \<rbrakk> 
         \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<langle>Q\<rangle>" |
+
+(*
+6 rules are needed for parallel execution,
+- 2 recursive rules for left and right OK states
+- 2 rules for instant Error for L and R
+- 2 rules for discharging SKIP. 
+*)
 
 tParallelL: "\<lbrakk>c\<^sub>2 \<noteq> SKIP; \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>OK P'\<rangle>; \<turnstile> \<langle>P'\<rangle> c\<^sub>1'||c\<^sub>2 \<langle>Q\<rangle> \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<langle>Q\<rangle>" |
@@ -120,10 +126,7 @@ lemma weaken_post_er:
   "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile> \<langle>P\<rangle> c \<langle>ER Q'\<rangle>"
   using tConseqER by blast
 
-text\<open>The assignment and While rule are awkward to use in actual proofs
-because their pre and postcondition are of a very special form and the actual
-goal would have to match this form exactly. Therefore we derive two variants
-with arbitrary pre and postconditions.\<close>
+text\<open>Assignment helper lemma\<close>
 
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile> \<langle>P\<rangle> x ::= a \<langle>OK Q\<rangle>"
   by (metis (lifting) tConseqOK tAssign)

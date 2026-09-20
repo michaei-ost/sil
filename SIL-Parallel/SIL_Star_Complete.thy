@@ -2,15 +2,59 @@ theory SIL_Star_Complete
 imports SIL_Star_WP SIL_Star_Sound SIL_Big_Step_Complete
 begin
 
-thm one_step_post
-thm tParallelL
+text\<open>Completeness of SIL Star Semantics.
+Currently only provable for sequential code, with no
+parallel execution. Parallel completeness is left out of this study,
+and left as a future research topic in this field.\<close>
+
+lemma Sequential_Equality:
+  assumes "isSequential c"
+  and "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
+shows "\<Turnstile>\<^sub>b  \<langle>P\<rangle> c \<langle>Q\<rangle>"
+  unfolding SIL_valid_def SIL_Star_Valid_def
+  apply (cases Q)
+  using big_iff_small SIL_Star_Valid_def assms(1,2) apply force
+  using big_iff_small SIL_Star_Valid_def assms(1,2)
+  by auto
+
+lemma Sequential_star_to_big_step: 
+  assumes "isSequential c"
+  shows "\<turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>Q\<rangle> \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
+  apply(induction rule: SIL.induct)
+                 apply (metis SIL_Star.tSkip)
+                apply (metis SIL_Star.tAbort)
+               apply (metis SIL_Star.tAssign)
+              apply (metis SIL_Star.tAssignNDOK)
+             apply (metis SIL_Star.tAssignNDER)
+            apply (metis SIL_Star.tSeqOK)
+           apply (metis SIL_Star.tSeqER)
+          apply (simp add: SIL_Star.tIf)
+         defer
+         apply (simp add: SIL_Star.tSelectNDNP)
+        apply (metis SIL_Star.tWhileOK)
+       apply (metis SIL_Star.tWhileER)
+      apply (metis tConseqOK)
+     apply (metis tConseqER)
+    apply (metis tFalsePre)
+   apply (metis tDisjunction)
+  using SIL_Star.tSelectND
+  by blast
 
 lemma Sequential_Completeness:
   assumes "isSequential c"
   and "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
 shows "\<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
-  using big_iff_small sil_complete sorry
+  using big_iff_small sil_complete Sequential_Equality 
+  by (metis Sequential_star_to_big_step assms(1) assms(2))
 
+lemma Sequential_WP_is_pre: 
+  assumes "isSequential c"
+  shows "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
+by (simp add: Sequential_star_to_big_step assms big_iff_small_wp wp_big_step_is_pre)
+
+
+text\<open>The remainder of this file is work in progress, completeness is derived through
+small and big step equivalence, only for sequential programs.\<close>
 
 lemma ParND_is_pre:
   assumes IH1: "\<And>Q. \<turnstile> \<langle>wp c\<^sub>1 Q\<rangle> c\<^sub>1 \<langle>Q\<rangle>"
@@ -44,7 +88,7 @@ proof-
     by (metis assms wp_While_True)
   have h1: "bval b s \<Longrightarrow> wp c (OK (wp (WHILE b DO c) (OK Q))) s"
     by (metis h0 wp_Seq_OK)
-  have h2: "bval b s \<Longrightarrow> (\<exists>n. (wp c (OK (While_Step n (OK Q) b c)) s))" sledgehammer
+  have h2: "bval b s \<Longrightarrow> (\<exists>n. (wp c (OK (While_Step n (OK Q) b c)) s))"
   oops
 
 lemma While_is_pre:
@@ -201,24 +245,21 @@ lemma wp_is_pre: "\<turnstile> \<langle>wp c Q\<rangle> c \<langle>Q\<rangle>"
        apply (cases "c2 = SKIP")
        apply (metis wp_Par_SKIP_R tParallelSkipR)
       using wp_Par_OK by (simp add: ParND_is_pre)
-qed
+    oops
 
 lemma valid_imp_wp_big_step: "\<Turnstile> \<langle>P\<rangle> c  \<langle>Q\<rangle> \<Longrightarrow>
     \<forall>s. P s \<longrightarrow> wp_big_step c Q s"
   unfolding wp_big_step_def SIL_valid_def
-  apply(cases Q)
-  apply fastforce
-by fastforce
+  apply(cases  Q)
+  oops
 
 lemma sil_complete: 
   "\<Turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle> \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>"
-  apply (rule strengthen_pre[where P="wp_big_step c Q"])
-  apply (metis valid_imp_wp_big_step)
-by (metis wp_big_step_is_pre)
+  oops
 
 corollary sil_sound_complete: 
   "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
-   by(fastforce simp: sil_sound sil_complete)
+  oops
 
 end
 (*

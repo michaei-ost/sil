@@ -1,7 +1,24 @@
 theory SIL_Star_Calc
 
-imports SIL_Star_WP
+imports SIL_Star_WP SIL_Star_Complete
 begin
+
+text\<open>This file contains logic for an automatic calculator used for calculating
+the weakest precondition. This calculator uses a custom predicate datatype,
+designed to express predicates in a readable way. A recursive function is then
+used to calculate a precondition, referencing the previous WP definitions.
+
+As by this logic, While loops with non-determinism can be decomposed infinitely,
+the calculator is designed to find only a single terminating path. This however is sufficient,
+as it will achieve the goal of finding a possible attack path.
+
+Logic for calculating the WP of parallel execution is added, even though completeness
+cannot be proven, and it is valid only at the semantic level. It will be used solely for
+examples and areas for future research.
+
+A theorem at the end is given, equating the output of this calculator to actual weakest preconditions.
+\<close>
+
 datatype pred =
     PTrue
   | PFalse
@@ -25,6 +42,10 @@ fun pred_sem :: "pred \<Rightarrow> state \<Rightarrow> bool" where
 datatype pred_post  =
     OK' pred
     | ER' pred
+
+fun pred_post_sem :: "pred_post \<Rightarrow> post" where
+  "pred_post_sem (OK' p) = OK (pred_sem p)"
+| "pred_post_sem (ER' p) = ER (pred_sem p)"
 
 fun post_sem :: "pred_post \<Rightarrow> post" where
   "post_sem (OK' p) = OK (pred_sem p)"
@@ -331,7 +352,7 @@ where
 | "wp_calc (Suc n) w (c1;;c2) (OK' Q) =
     concat (map (\<lambda>(p2,t2).
         map (\<lambda>(p1,t1).
-            (pred_simp p1, SeqTrace t1 t2))
+            (p1, SeqTrace t1 t2))
        (wp_calc n w c1 (OK' p2)))
     (wp_calc n w c2 (OK' Q)))"
 
@@ -342,7 +363,7 @@ where
      in
        concat (map (\<lambda>(p2,t2).
            map (\<lambda>(p1,t1).
-               (pred_simp p1, SeqTrace t1 t2))
+               (p1, SeqTrace t1 t2))
            (wp_calc n w c1 (OK' p2)))
         xs)
        @ ys)"
@@ -350,17 +371,17 @@ where
 | "wp_calc (Suc n) w (SELECT S) (OK' Q) =
       (concat (map (\<lambda>(b,c).
           map (\<lambda>(p,t).
-              (pred_simp (PAnd (PAtom b) p), SeqTrace (SelectTrace b c) t))
+              ((PAnd (PAtom b) p), SeqTrace (SelectTrace b c) t))
           (wp_calc n w c (OK' Q)))
        S))"
 
 | "wp_calc (Suc n) w (SELECT S) (ER' Q) =
        (concat (map (\<lambda>(b,c).
           map (\<lambda>(p,t).
-              (pred_simp (PAnd (PAtom b) p), SeqTrace (SelectTrace b c) t))
+              ((PAnd (PAtom b) p), SeqTrace (SelectTrace b c) t))
           (wp_calc n w c (ER' Q)))
        S)) @
-       [(pred_simp (no_selection S Q), BigStep SKIP)]"
+       [(no_selection S Q, BigStep SKIP)]"
 
 | "wp_calc (Suc n) w (AssignND x []) (OK' Q) =
     [(PFalse, BigStep (x ::= ND []))]"
@@ -374,19 +395,17 @@ where
 | "wp_calc (Suc n) w (AssignND x (S1 # S)) (OK' Q) =
     concat (map (\<lambda>a.
        map (\<lambda>(p,t).
-           (pred_simp p, AssignNDTrace a))
+           (p, AssignNDTrace a))
        (wp_calc n w (x ::= a) (OK' Q)))
     (S1 # S))"
 
 | "wp_calc (Suc n) w (IF b THEN c1 ELSE c2) Q =
-    filter
-      (\<lambda>(p,t). pred_simp p \<noteq> PFalse)
       (append 
         (map (\<lambda>(p,t).
-            (pred_simp (PAnd (PAtom b) p), IfTrace b True t))
+            ((PAnd (PAtom b) p), IfTrace b True t))
         (wp_calc n w c1 Q))
         (map (\<lambda>(p,t).
-            (pred_simp (PAnd (PAtom (Not b)) p),IfTrace b False t))
+            ((PAnd (PAtom (Not b)) p),IfTrace b False t))
         (wp_calc n w c2 Q)))"
 
 | "wp_calc (Suc m) limits (WHILE b DO c) (OK' Q) =
@@ -518,6 +537,371 @@ where
                  in er_first @ ok_first))
            (next_com c2))
         in left_paths @ right_paths))"
+
+lemma subst_aexp_sound:
+  "aval (subst_aexp e x a) s =
+   aval e (s(x := aval a s))"
+  apply (induction e arbitrary: s)
+by fastforce+
+
+lemma subst_bexp_sound:
+  "bval (subst_bexp b x a) s =
+   bval b (s(x := aval a s))"
+proof(induction b arbitrary: s)
+  case (Bc x)
+  then show ?case by simp
+next
+  case (Not b)
+  then show ?case by simp
+next
+  case (And b1 b2)
+  then show ?case by simp
+next
+  case (Less x1a x2a)
+  then show ?case
+    using bval.simps(4) subst_aexp_sound subst_bexp.simps(4) by presburger
+next
+  case (Equal x1a x2a)
+  then show ?case
+    by (metis bval.simps(5) subst_aexp_sound subst_bexp.simps(5))
+qed
+
+lemma subst_aexp_pred_sound:
+  "pred_sem (subst_pred Q x a) s  = (pred_sem Q) (s( x:= aval a s))"
+proof(induction Q arbitrary: s)
+  case PTrue
+  then show ?case by auto
+next
+  case PFalse
+  then show ?case by auto
+next
+  case (PNot Q)
+  then show ?case by auto
+next
+  case (PAnd Q1 Q2)
+  then show ?case by auto
+next
+  case (POr Q1 Q2)
+  then show ?case by auto
+next
+  case (PAtom x)
+  then show ?case 
+    by (metis subst_pred.simps(6) pred_sem.simps(6) subst_bexp_sound)
+next
+  case (PComEq x1 x2)
+  then show ?case by auto
+qed
+
+lemma wp_calc_Assign_sound:
+  assumes
+    "pred_sem p s"
+    "(p, q) \<in> set (wp_calc n w (x1 ::= x2) Q)"
+  shows
+    "wp (x1 ::= x2) (pred_post_sem Q) s"
+  using assms
+                  apply (cases Q)
+                apply clarsimp
+              apply (cases n)
+            apply simp
+          apply clarsimp
+        apply (metis subst_aexp_pred_sound)
+      apply clarsimp
+    apply (cases n)
+  apply simp
+by simp
+
+lemma wp_calc_AssignND_OK_fail:
+  assumes
+    "pred_sem p s"
+    "x2 = a # list"
+    "\<forall>v\<in>set list. \<not> pred_sem Q (s(x1 := aval v s))"
+    "x \<in> set list"
+    "(p, b) \<in> set (wp_calc (n)  w (x1 ::= x) (OK' Q))"
+  shows
+    "pred_sem Q (s(x1 := aval a s))"
+proof -
+  have hnot: "\<not> pred_sem Q (s[x/x1])"
+    using assms(3,4) by blast
+
+  have hwp:
+      "wp (x1 ::= x) (OK (pred_sem Q)) s"
+    using assms(1,5) wp_calc_Assign_sound
+  by fastforce
+
+  have hQ: "pred_sem Q (s[x/x1])" using hwp by simp
+
+  from hnot hQ  show "pred_sem Q (s[a/x1])"
+    by presburger
+qed
+
+lemma wp_calc_AssignND_sound:
+  assumes
+    "pred_sem p s"
+    "(p, q) \<in> set (wp_calc (Suc n) w (x ::= ND S) Q)"
+  shows
+    "wp (x ::= ND S) (pred_post_sem Q) s"
+  using assms
+  apply (cases S)
+  apply (cases Q)
+  apply fastforce+
+  apply (cases Q)
+  apply clarsimp
+  apply (elim disjE)
+  apply clarsimp
+  using wp_calc_Assign_sound wp_Assign_OK apply simp
+    apply fastforce
+   apply clarsimp
+   apply (metis wp_calc_AssignND_OK_fail)
+  by auto
+
+lemma wp_calc_Seq_sound:
+  assumes
+    IH_c1: "\<And>p q Q s n. pred_sem p s \<Longrightarrow>
+      (p,q) \<in> set (wp_calc n w c1 Q) \<Longrightarrow>
+      wp c1 (pred_post_sem Q) s"
+    and IH_c2: "\<And>p q Q s n. pred_sem p s \<Longrightarrow>
+      (p,q) \<in> set (wp_calc n w c2 Q) \<Longrightarrow>
+      wp c2 (pred_post_sem Q) s"
+    and h_pred: "pred_sem p s"
+    and h_calc: "(p,q) \<in> set (wp_calc n w (c1;;c2) Q)"
+  shows
+    "wp (c1;;c2) (pred_post_sem Q) s"
+  apply (cases n)
+  apply (cases Q)
+  using h_calc apply auto[1]
+  using h_calc apply auto[1]
+proof(cases Q)
+  case (OK' X)
+  fix nat
+  assume hn: "n = Suc nat"
+  then show ?thesis proof-
+    have h0:  "\<exists>p' q' s'. (p', q') \<in> set (wp_calc nat w c2 (OK' X))
+              \<and> (\<exists>q''. (p, q'') \<in> set (wp_calc nat w c1 (OK' p'))) " 
+      using hn h_pred h_calc wp_calc.simps(9) OK' by auto
+    obtain p' q' q'' where 
+          im_1: "(p',q') \<in> set (wp_calc nat w c2 (OK' X))"
+      and im_2: "(p ,q'') \<in> set (wp_calc nat w c1 (OK' p')) \<and> pred_sem p s"
+      by (metis h_pred h0)
+    have h1: "wp c1 (OK (pred_sem p')) s"
+      using IH_c1 im_2 by fastforce
+    have h2: "pred_sem p' s \<Longrightarrow> wp c2 (pred_post_sem Q) s"
+      using IH_c2 im_1 OK' by blast
+    have h2: "wp c1 (OK (wp c2 (pred_post_sem Q))) s"
+      using h1 h2 wp_def weaken_post_ok IH_c2 im_1 OK' by (smt (verit, del_insts) post.simps(5))
+    show ?thesis
+      using OK' h2 by auto
+  qed
+next
+  case (ER' X)
+  fix nat
+  assume hn: "n = Suc nat"
+  then show ?thesis proof-
+    have h0:  "\<exists>p' q'. (p', q') \<in> set (wp_calc nat w c2 (ER' X))
+              \<and> (\<exists>q''. (p, q'') \<in> set (wp_calc nat w c1 (OK' p'))) 
+              \<or> (\<exists>q''. (p, q'') \<in> set (wp_calc nat w c1 (ER' X)))" 
+      using h_pred h_calc wp_calc.simps(10) hn ER' by auto
+    show ?thesis proof (cases "(\<exists>q''. (p, q'') \<in> set (wp_calc nat w c1 (ER' X)))")
+      case True
+      then show ?thesis
+        by (metis True ER' h_pred IH_c1 pred_post.distinct(1) pred_post_sem.elims wp_Seq_ER)
+    next
+      case False
+      then show ?thesis proof-
+        obtain p' q' q'' where 
+              im_1: "(p',q') \<in> set (wp_calc nat w c2 (ER' X))"
+          and im_2: "(p ,q'') \<in> set (wp_calc nat w c1 (OK' p')) \<and> pred_sem p s"
+          using False h0 h_pred by auto
+        have h1: "wp c1 (OK (pred_sem p')) s"
+          using IH_c1 im_2 h0 h_pred by fastforce
+        have h2: "pred_sem p' s \<Longrightarrow> wp c2 (pred_post_sem Q) s"
+          using IH_c2 im_1 ER' by blast
+        have h2: "wp c1 (OK (wp c2 (pred_post_sem Q))) s" 
+          using h1 h2 wp_def weaken_post_ok IH_c2 im_1 ER' post.simps(5)
+          by (smt (verit, del_insts))
+        show ?thesis using ER' h2 by auto
+      qed
+    qed
+  qed
+qed
+
+lemma wp_calc_If_sound:
+  assumes
+    IH_c1: "\<And>p q Q s n. pred_sem p s \<Longrightarrow>
+      (p,q) \<in> set (wp_calc n w c1 Q) \<Longrightarrow>
+      wp c1 (pred_post_sem Q) s"
+    and IH_c2: "\<And>p q Q s n. pred_sem p s \<Longrightarrow>
+      (p,q) \<in> set (wp_calc n w c2 Q) \<Longrightarrow>
+      wp c2 (pred_post_sem Q) s"
+    and h_pred: "pred_sem p s"
+    and h_calc: "(p,q) \<in> set
+      (wp_calc n  w (IF x1 THEN c1 ELSE c2) Q)"
+  shows
+    "wp (IF x1 THEN c1 ELSE c2) (pred_post_sem Q) s"
+  apply (cases n)
+  apply (cases Q)
+  using h_calc apply auto[1]
+  using h_calc apply auto[1]
+proof-
+  fix nat
+  assume hn: "n = Suc nat"
+  then show ?thesis proof-
+    have hp: "(p,q) \<in> set (wp_calc (Suc nat) w (IF x1 THEN c1 ELSE c2)  Q)"
+      by (metis hn h_calc)
+    have hp1: "\<exists>p' q' q''. p = PAnd (PAtom x1) p' \<and> (p',q') \<in> set (wp_calc nat w c1 Q) \<or>
+     p = PAnd (PAtom (Not x1)) p' \<and> (p',q'') \<in> set (wp_calc nat w c2  Q)" 
+      using hp by auto
+    obtain p' q' q''  where pdef: 
+      "p = PAnd (PAtom x1) p' \<and> (p',q') \<in> set (wp_calc nat w c1 Q)
+        \<or> p = PAnd (PAtom (Not x1)) p' \<and> (p',q'') \<in> set (wp_calc nat w c2  Q)"
+      by (metis hp1)
+    then show ?thesis
+      by (metis IH_c1 IH_c2 bval.simps(2) h_pred pred_sem.simps(4,6) wp_If)
+  qed
+qed
+
+lemma wp_calc_Select_sound:
+  assumes
+    "pred_sem p s"
+    "(p,q) \<in> set (wp_calc n w (SELECT bs) Q)"
+    "\<And>b c n Q p' q' s'. (b,c) \<in> set bs \<Longrightarrow>
+       pred_sem p' s' \<Longrightarrow>
+       (p',q') \<in> set (wp_calc n w c Q) \<Longrightarrow>
+       wp c (pred_post_sem Q) s'"
+  shows
+    "wp (SELECT bs) (pred_post_sem Q) s"
+  apply (cases n)
+  apply (cases Q)
+  using assms(2) apply auto[1]
+  using assms(2) apply auto[1]
+proof(cases Q)
+  case (OK' X)
+  fix nat
+  assume hn: "n = Suc nat"
+  then show ?thesis proof-
+    have hp: "(p,q) \<in> set (wp_calc (Suc nat) w (SELECT bs) Q)"
+      by (metis hn assms(2))
+    have hp1: "\<exists>b c p' q'. (b,c) \<in> set bs \<and> p = PAnd (PAtom b) p' 
+                \<and> (p',q') \<in> set (wp_calc nat w c (OK' X))" 
+      using wp_calc.simps(11) OK' hn hp by auto
+    obtain b c p' q'  where pdef: 
+      "(b,c) \<in> set bs \<and> p = PAnd (PAtom b) p' \<and> (p',q') \<in> set (wp_calc nat w c (OK' X))"
+      by (metis hp1)
+    have h1: "pred_sem p s \<Longrightarrow> pred_sem p' s" 
+      by (simp add: pdef)
+    have h2: "wp c (pred_post_sem Q) s" 
+      using OK' assms(1,3) h1 pdef by blast
+    have h3: "(b,c) \<in> set bs \<and> bval b s \<and> wp c (pred_post_sem Q) s "
+      using assms(1) h2 pdef by auto
+    then show ?thesis using h3 wp_SelectND_OK OK' by auto
+  qed
+next
+  case (ER' X)
+  fix nat
+  assume hn: "n = Suc nat"
+  then show ?thesis proof-
+    have hp: "(p,q) \<in> set (wp_calc (Suc nat) w (SELECT bs) Q)"
+      by (metis hn assms(2))
+    have h0: "pred_sem (no_selection bs X) s \<Longrightarrow> ((\<forall>(b,c) \<in> set bs. \<not> bval b s) \<and> pred_sem X s)"
+      apply (induction bs)
+      by fastforce+
+    have hp1: "(\<exists>b c p' q'. (b,c) \<in> set bs \<and> p = PAnd (PAtom b) p' 
+                \<and> (p',q') \<in> set (wp_calc nat w c (ER' X)))
+              \<or> p = no_selection bs X"
+      using wp_calc.simps(12) ER' hn hp by fastforce
+    then show ?thesis proof(cases "p = no_selection bs X")
+      case True
+      then show ?thesis proof-
+        have h0: "(\<forall>(b,c) \<in> set bs. \<not> bval b s) \<and> pred_sem X s"
+          using assms by (simp add: True h0)
+        then show ?thesis using True wp_SelectND_ER ER' by auto
+      qed
+    next
+      case False
+      then show ?thesis proof-
+        obtain b c p' q'  where pdef: 
+          "(b,c) \<in> set bs \<and> p = PAnd (PAtom b) p' \<and> (p',q') \<in> set (wp_calc nat w c (ER' X))"
+          using False hp1 by blast
+        have h1: "pred_sem p s \<Longrightarrow> pred_sem p' s" 
+          by (simp add: pdef)
+        have h2: "wp c (pred_post_sem Q) s" 
+          using ER' assms(1,3) h1 pdef by blast
+        have h3: "(b,c) \<in> set bs \<and> bval b s \<and> wp c (pred_post_sem Q) s "
+          using assms(1) h2 pdef by auto
+        then show ?thesis using h3 wp_SelectND_OK ER' by auto
+      qed    
+    qed
+  qed
+qed
+
+lemma wp_calc_sound:
+  assumes "isSequential c"
+  shows "\<exists>p q. (p,q) \<in> set (wp_calc n w c Q) \<and> (pred_sem p s) \<Longrightarrow> (wp c (pred_post_sem Q)) s"
+  apply clarsimp
+  using assms
+proof (induction c arbitrary: Q s n)
+    case SKIP
+    then show ?case 
+      apply (induction n)
+       apply (cases Q)
+        apply fastforce+
+      apply (cases Q)
+     by fastforce+
+  next
+    case ABORT
+    then show ?case 
+      apply (induction n)
+       apply (cases Q)
+        apply fastforce+
+      apply (cases Q)
+     by fastforce+
+  next
+    case (Assign x1 x2)
+    then show ?case 
+      apply (induction n)
+       apply (cases Q)
+        apply fastforce+
+      by (metis wp_calc_Assign_sound)
+  next
+    case (AssignND x1 x2)
+    then show ?case 
+      apply (induction n)
+      apply (cases Q)
+        apply fastforce+
+      by (simp add: wp_calc_AssignND_sound)
+  next
+    case (Seq c1 c2)
+    then show ?case 
+      apply clarsimp
+      using wp_calc_Seq_sound by (smt (verit))
+  next
+    case (If x1 c1 c2)
+    then show ?case 
+      apply clarsimp
+      using wp_calc_If_sound by (smt (verit) wp_If)
+  next
+    case (SelectND x)
+    then show ?case
+      apply clarsimp
+      using pred_sem.simps(2) wp_calc_Select_sound
+      by (metis case_prod_conv)
+  next
+    case (While x1 c)
+    then show ?case sorry
+  next
+    case (Par c1 c2)
+    then show ?case 
+      using assms(1) isSequential.simps(1) by fast
+  qed
+
+lemma wp_calc_is_pre:
+  assumes
+    "isSequential c"
+    "(p,q) \<in> set (wp_calc n w c Q)"
+  shows
+    "\<turnstile> \<langle>pred_sem p\<rangle> c \<langle>pred_post_sem Q\<rangle>"
+  using wp_calc_sound Sequential_WP_is_pre
+by (metis SIL_Star.strengthen_pre assms(1,2))
+
 
 value "
   map

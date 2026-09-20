@@ -1,10 +1,15 @@
-subsection \<open>Soundness and Completeness\<close>
+subsection \<open>Soundness\<close>
 
 theory SIL_Star_Sound
 imports SIL_Star SIL_Single_Step_Sound
 begin
 
-subsubsection "Soundness"
+subsubsection "Soundness of SIL star"
+
+text\<open>Soundness proof for SIL Star rules. This proves soundness for sequential and
+non sequential programs, thus showing that parallel composition rules are sound,
+even though they cannot be proven complete. This provides a potential proof structure,
+and contribution of this research.\<close>
 
 lemma sil_while_sound_ok:
 assumes "\<And>n. \<turnstile> \<langle>Q (Suc n)\<rangle> c  \<langle>OK (Q n)\<rangle>"
@@ -104,7 +109,6 @@ proof-
   then show ?thesis  by (metis Er star.simps)
 qed
 
-
 lemma sil_star_sound: 
   "\<turnstile> \<langle>P\<rangle> c \<langle>R\<rangle>  \<Longrightarrow>  \<Turnstile> \<langle>P\<rangle> c \<langle>R\<rangle>"
   unfolding SIL_Star_Valid_def
@@ -115,15 +119,15 @@ lemma sil_star_sound:
                     apply fastforce
                    apply clarsimp
                    defer
-  apply (case_tac R)
+                   apply (case_tac R)
                     apply clarsimp
-  using seq_comp_sOK apply blast
+                    using seq_comp_sOK apply blast
                    apply clarsimp
                    apply (metis seq_comp_sOK)
                   apply clarsimp
                   apply (metis seq_comp_sER)
                  apply (case_tac R)
-  apply clarsimp
+                  apply clarsimp
                   apply (metis small_step.IfFalse small_step.IfTrue star.step)
                  apply (case_tac R)
                   apply clarsimp
@@ -131,7 +135,7 @@ lemma sil_star_sound:
                  apply (metis small_step.IfFalse small_step.IfTrue star.step)
                 apply (case_tac Q)
                  apply clarsimp
-    defer
+                 defer
                  apply (case_tac Q)
                   apply clarsimp
                  apply clarsimp
@@ -142,7 +146,7 @@ lemma sil_star_sound:
                 defer
                 apply clarsimp
                 defer
-  apply fastforce
+                apply fastforce
                apply fastforce
               apply (case_tac Q)
                apply fastforce

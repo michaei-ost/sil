@@ -1,10 +1,15 @@
-(* Author: Tobias Nipkow *)
-
-subsection \<open>Soundness and Completeness\<close>
+subsection \<open>Completness Proof for Big Step semantics based SIL\<close>
 
 theory SIL_Big_Step_Complete
 imports SIL_Big_Step SIL_Big_Step_Sound SIL_Big_Step_WP
 begin
+
+text\<open>Completeness is shown by establishing that the weakest precondition,
+as defined based on the big-step semantics, is indeed a precondition for the
+command execution. By doing this, it shows that any execution, as per big step
+semantics, can also be shown using the SIL rules.\<close>
+
+text\<open>A helper lemma to prove Sequence weakest precondition\<close>
 
 lemma "seq_is_pre":
   assumes c1: "\<forall>R. \<turnstile>\<^sub>b \<langle>wp_big_step c1 R\<rangle> c1  \<langle>R\<rangle>"
@@ -33,12 +38,7 @@ next
     by (smt (verit) ER strengthen_pre wp_big_step_Seq_ER)
 qed
 
-
-
-(*(SELECT ?bs, ?s) \<Down> ?t \<Longrightarrow> 
-(\<And>b c. (b, c) \<in> set ?bs \<Longrightarrow> 
-bval b ?s \<Longrightarrow> (c, ?s) \<Down> ?t \<Longrightarrow> ?P) 
-\<Longrightarrow> ?P *)
+text\<open>Helper lemmas and definitions to prove the SelectND rule\<close>
 
 definition select_pre where
   "select_pre \<equiv> \<lambda>bs Q. (\<lambda>s.(\<exists>t. (SELECT bs, s) \<Down> t \<and> apply_post Q t))"
@@ -78,24 +78,24 @@ proof(cases Q)
   next
     case (ER x)
     have h3: "\<forall>s. select_pre_er bs Q s \<longrightarrow> (\<exists>(b,c) \<in> set bs. (bval b s) \<and> 
-                (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t)) 
-                \<or> ((\<forall>(b,c) \<in> set bs. \<not>bval b s) \<and> x s)"
+        (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t)) 
+        \<or> ((\<forall>(b,c) \<in> set bs. \<not>bval b s) \<and> x s)"
       by (smt (verit, del_insts) ER case_prodE case_prodI select_pre_er_def wp_big_step_SelectND_ER wp_big_step_def)
 
     have h4: "\<forall>s. select_pre_er bs Q s \<and> (\<exists>(b,c) \<in> set bs. bval b s) \<longrightarrow> (\<exists>(b,c) \<in> set bs. (bval b s) \<and> 
-                (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t))"
+        (\<exists>t. (c, s) \<Down> t \<and> apply_post Q t))"
       using h3 by auto 
 
     have h4p5: "\<forall>s. select_pre_er bs Q s \<and> \<not> (\<exists>(b,c) \<in> set bs. bval b s) \<longrightarrow> x s"
       using h3 by auto 
 
     have h5: "\<forall>s. select_pre_er bs Q s \<and> (\<exists>(b,c) \<in> set bs. bval b s) \<longrightarrow> (\<exists>(b,c) \<in> set bs. (bval b s) \<and> 
-                (\<exists>t. (c, s) \<Down> (t,False) \<and> post_assn Q t))"
+        (\<exists>t. (c, s) \<Down> (t,False) \<and> post_assn Q t))"
       by (smt (verit, ccfv_threshold) ER apply_post.elims(2) apply_post.simps(2) case_prodE case_prodI h4
           post_assn.simps(2))
 
     have h6: "\<forall>bc \<in> set bs. case bc of (b,c) \<Rightarrow>
-       \<turnstile>\<^sub>b \<langle>\<lambda>s. (select_path_pre_er b c Q s)  \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
+        \<turnstile>\<^sub>b \<langle>\<lambda>s. (select_path_pre_er b c Q s)  \<and> bval b s\<rangle> c \<langle>Q\<rangle>"
       using assms
       unfolding select_path_pre_def wp_big_step_def apply clarsimp
       by (smt (verit) ER apply_post.simps(2) post_assn.simps(2) select_path_pre_er_def
@@ -132,69 +132,71 @@ proof(cases Q)
       by (metis h9 select_pre_er_def)
 qed
 
-primrec QQ ::
+text\<open>Helper lemmas for the While rule completeness proof\<close>
+
+primrec While_Step_Pre ::
   "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
 where
-  "QQ R b c 0 = (\<lambda>s. R s \<and> \<not> bval b s)"
-| "QQ R b c (Suc n) = (\<lambda>s. wp_big_step c (OK (QQ R b c n)) s \<and> bval b s)"
+  "While_Step_Pre R b c 0 = (\<lambda>s. R s \<and> \<not> bval b s)"
+| "While_Step_Pre R b c (Suc n) = (\<lambda>s. wp_big_step c (OK (While_Step_Pre R b c n)) s \<and> bval b s)"
 
-primrec QQ_er_1 ::
+primrec While_Step_Pre_ER_Helper ::
   "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
   where
-  "QQ_er_1 R b c 0 = (\<lambda>s. wp_big_step c (ER R) s \<and> bval b s)"
-| "QQ_er_1 R b c (Suc n) = (\<lambda>s. wp_big_step c (OK (QQ_er_1 R b c n)) s \<and> bval b s)"
+  "While_Step_Pre_ER_Helper R b c 0 = (\<lambda>s. wp_big_step c (ER R) s \<and> bval b s)"
+| "While_Step_Pre_ER_Helper R b c (Suc n) = (\<lambda>s. wp_big_step c (OK (While_Step_Pre_ER_Helper R b c n)) s \<and> bval b s)"
 
-primrec QQ_er ::
+primrec While_Step_Pre_ER ::
   "(state \<Rightarrow> bool) \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> nat \<Rightarrow> state \<Rightarrow> bool"
   where
-  "QQ_er R b c 0 = R"
-| "QQ_er R b c (Suc n) = QQ_er_1 R b c n"
+  "While_Step_Pre_ER R b c 0 = R"
+| "While_Step_Pre_ER R b c (Suc n) = While_Step_Pre_ER_Helper R b c n"
 
 
 lemma While_Strengthen:
   assumes exec: "(WHILE b DO c, s) \<Down> t"
   and post: "apply_post (OK Q) t"
-  shows "\<exists>n. (QQ Q b c) n  s"
+  shows "\<exists>n. (While_Step_Pre Q b c) n  s"
   using exec post
 proof (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
   case  WhileGuardFalse then show ?case
-    by (meson QQ.simps(1) apply_post.simps(1))
+    by (metis WhileGuardFalse.hyps WhileGuardFalse.prems While_Step_Pre.simps(1) apply_post.simps(1))
   next 
   case (WhileBodySucceeds s1 s2 s3) 
-      then obtain n where hn: "QQ Q b c n s2"
+      then obtain n where hn: "While_Step_Pre Q b c n s2"
         by blast
-      then have h0: "QQ Q b c n s2"
+      then have h0: "While_Step_Pre Q b c n s2"
         by simp
-      then have h1: "wp_big_step c (OK (QQ Q b c n)) s1"
+      then have h1: "wp_big_step c (OK (While_Step_Pre Q b c n)) s1"
         unfolding wp_big_step_def
       proof-
-        show "\<exists>t. (c, s1) \<Down> t \<and> apply_post (OK (QQ Q b c n)) t"
+        show "\<exists>t. (c, s1) \<Down> t \<and> apply_post (OK (While_Step_Pre Q b c n)) t"
           using WhileBodySucceeds.hyps(2) hn by auto
       qed
-    then have h2: "wp_big_step c (OK (QQ Q b c n)) s1 \<and> bval b s1"
+    then have h2: "wp_big_step c (OK (While_Step_Pre Q b c n)) s1 \<and> bval b s1"
       by (metis h1 WhileBodySucceeds.hyps(1))    
-    show "\<exists>n. QQ Q b c n s1"
+    show "\<exists>n. While_Step_Pre Q b c n s1"
         proof (rule exI[where x="Suc n"])
-          show "QQ Q b c (Suc n) s1"
+          show "While_Step_Pre Q b c (Suc n) s1"
             by (simp add: h2)
         qed
    next
      case (WhileBodyAborts s1 s2)
-     then obtain n where hn: "QQ Q b c n s2"
+     then obtain n where hn: "While_Step_Pre Q b c n s2"
        by force
-      then have h0: "QQ Q b c n s2"
+      then have h0: "While_Step_Pre Q b c n s2"
         by simp
-      then have h1: "wp_big_step c (ER (QQ Q b c n)) s1"
+      then have h1: "wp_big_step c (ER (While_Step_Pre Q b c n)) s1"
         unfolding wp_big_step_def
       proof-
-        show "\<exists>t. (c, s1) \<Down> t \<and> apply_post (ER (QQ Q b c n)) t"
+        show "\<exists>t. (c, s1) \<Down> t \<and> apply_post (ER (While_Step_Pre Q b c n)) t"
           using WhileBodyAborts.prems by auto
       qed
-    then have h2: "wp_big_step c (ER (QQ Q b c n)) s1 \<and> bval b s1"
+    then have h2: "wp_big_step c (ER (While_Step_Pre Q b c n)) s1 \<and> bval b s1"
       by (metis h1 WhileBodyAborts.hyps(1))
-    show "\<exists>n. QQ Q b c n s1"
+    show "\<exists>n. While_Step_Pre Q b c n s1"
         proof (rule exI[where x="Suc n"])
-            show "QQ Q b c (Suc n) s1"
+            show "While_Step_Pre Q b c (Suc n) s1"
               using WhileBodyAborts.prems by auto
           qed
 qed
@@ -202,33 +204,33 @@ qed
 lemma While_Strengthen_ER:
   assumes exec: "(WHILE b DO c, s) \<Down> t"
   and post: "apply_post (ER Q) t"
-  shows "\<exists>n. (QQ_er Q b c) (Suc n) s"
+  shows "\<exists>n. (While_Step_Pre_ER Q b c) (Suc n) s"
   using exec post
   apply (induction "(WHILE b DO c, s)" t arbitrary: Q s rule: big_step.induct)
     apply simp
-   defer
-   apply clarsimp
-   apply (metis QQ_er_1.simps(1) apply_post.simps(2) wp_big_step_def)
+    defer
+    apply clarsimp
+   apply (metis While_Step_Pre_ER_Helper.simps(1) apply_post.simps(2) wp_big_step_def)
   apply clarsimp
 proof-
   fix s\<^sub>1 s\<^sub>2 a Q
   assume bval: "bval b s\<^sub>1"
      and c_step: "(c, s\<^sub>1) \<Down> (s\<^sub>2, True)"
      and while_step: "(WHILE b DO c, s\<^sub>2) \<Down> (a, False)"
-     and IH: "\<And>Q. Q a \<Longrightarrow> \<exists>n. QQ_er_1 Q b c n s\<^sub>2"
+     and IH: "\<And>Q. Q a \<Longrightarrow> \<exists>n. While_Step_Pre_ER_Helper Q b c n s\<^sub>2"
      and Qa: "Q a"
 
-  obtain n where hn: "QQ_er_1 Q b c n s\<^sub>2"
+  obtain n where hn: "While_Step_Pre_ER_Helper Q b c n s\<^sub>2"
     by (metis Qa IH)
-  then have h0: "QQ_er_1 Q b c n s\<^sub>2"
+  then have h0: "While_Step_Pre_ER_Helper Q b c n s\<^sub>2"
     by simp
-  then have h1: "wp_big_step c (OK (QQ_er_1 Q b c n)) s\<^sub>1"
+  then have h1: "wp_big_step c (OK (While_Step_Pre_ER_Helper Q b c n)) s\<^sub>1"
     unfolding wp_big_step_def
     using c_step by auto
-  then have h2: "wp_big_step c (OK (QQ_er_1 Q b c n)) s\<^sub>1 \<and> bval b s\<^sub>1"
+  then have h2: "wp_big_step c (OK (While_Step_Pre_ER_Helper Q b c n)) s\<^sub>1 \<and> bval b s\<^sub>1"
     by (metis h1 bval)
-  show "\<exists>n. QQ_er_1 Q b c n s\<^sub>1"
-    by (meson QQ_er_1.simps(2) h2)
+  show "\<exists>n. While_Step_Pre_ER_Helper Q b c n s\<^sub>1"
+    by (meson While_Step_Pre_ER_Helper.simps(2) h2)
 qed
 
 lemma While_is_pre_ok:
@@ -237,23 +239,22 @@ lemma While_is_pre_ok:
   unfolding wp_big_step_def  
 proof- 
   fix n
-  have h1: "\<turnstile>\<^sub>b \<langle>wp_big_step c (OK (QQ Q b c n))\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
+  have h1: "\<turnstile>\<^sub>b \<langle>wp_big_step c (OK (While_Step_Pre Q b c n))\<rangle> c  \<langle>OK (While_Step_Pre Q b c n)\<rangle>"
     by (metis assms)
-  have h2: "\<turnstile>\<^sub>b \<langle>\<lambda>s. (wp_big_step c (OK (QQ Q b c n)) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
+  have h2: "\<turnstile>\<^sub>b \<langle>\<lambda>s. (wp_big_step c (OK (While_Step_Pre Q b c n)) s \<and> bval b s)\<rangle> c  \<langle>OK (While_Step_Pre Q b c n)\<rangle>"
     by (smt (verit, best) conseqOK h1)
-  have h3: "\<turnstile>\<^sub>b \<langle>(QQ Q b c (Suc n))\<rangle> c  \<langle>OK (QQ Q b c n)\<rangle>"
+  have h3: "\<turnstile>\<^sub>b \<langle>(While_Step_Pre Q b c (Suc n))\<rangle> c  \<langle>OK (While_Step_Pre Q b c n)\<rangle>"
     by (simp add: h2)
-  have h4: "\<And>n::nat. \<turnstile>\<^sub>b \<langle>(QQ Q b c) (Suc n)\<rangle> c  \<langle>OK ((QQ  Q b c) n)\<rangle>"
-    by (metis QQ.simps(2) assms strengthen_pre)
-  have h5: "\<And>s. (QQ Q b c) 0 s \<Longrightarrow> \<not> bval b s"
+  have h4: "\<And>n::nat. \<turnstile>\<^sub>b \<langle>(While_Step_Pre Q b c) (Suc n)\<rangle> c  \<langle>OK ((While_Step_Pre  Q b c) n)\<rangle>"
+    by (metis While_Step_Pre.simps(2) assms strengthen_pre_ok)
+  have h5: "\<And>s. (While_Step_Pre Q b c) 0 s \<Longrightarrow> \<not> bval b s"
     by simp
-  have h6: "\<And>n s. (QQ Q b c) (Suc n) s \<Longrightarrow> bval b s"
+  have h6: "\<And>n s. (While_Step_Pre Q b c) (Suc n) s \<Longrightarrow> bval b s"
     by simp
-  have h7: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>OK (\<lambda>s. (QQ Q b c) 0 s)\<rangle>"
-    using QQ_def
-    by (smt (verit, best) conseqOK h4 h5 h6 tWhileOK)
-  have h8: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (QQ Q b c) n  s\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
-    using QQ.simps(1) h7 weaken_post_ok by presburger
+  have h7: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (While_Step_Pre Q b c) n  s\<rangle> WHILE b DO c \<langle>OK (\<lambda>s. (While_Step_Pre Q b c) 0 s)\<rangle>"
+    using h4 h5 h6 tWhileOK by presburger
+  have h8: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (While_Step_Pre Q b c) n  s\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
+    using While_Step_Pre.simps(1) h7 weaken_post_ok by presburger
   have h9: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> apply_post (OK Q) t\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
     by (smt (verit, best) While_Strengthen conseqOK h8)
   show "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> t \<and> apply_post (OK Q) t\<rangle> WHILE b DO c \<langle>OK Q\<rangle>"
@@ -271,23 +272,23 @@ proof-
             (\<exists>a. (WHILE b DO c, s) \<Down> (a, False) \<and> Q a)"
     by blast
   fix n
-  have h0: "\<turnstile>\<^sub>b \<langle>wp_big_step c (ER (QQ_er Q b c 0))\<rangle> c  \<langle>ER (QQ_er Q b c 0)\<rangle>"
+  have h0: "\<turnstile>\<^sub>b \<langle>wp_big_step c (ER (While_Step_Pre_ER Q b c 0))\<rangle> c  \<langle>ER (While_Step_Pre_ER Q b c 0)\<rangle>"
     by (metis assms)
-  have h1: "\<turnstile>\<^sub>b \<langle>wp_big_step c (OK (QQ_er Q b c (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+  have h1: "\<turnstile>\<^sub>b \<langle>wp_big_step c (OK (While_Step_Pre_ER Q b c (Suc n)))\<rangle> c  \<langle>OK (While_Step_Pre_ER Q b c (Suc n))\<rangle>"
     by (metis assms)
-  have h2: "\<turnstile>\<^sub>b \<langle>\<lambda>s. (wp_big_step c (OK (QQ_er Q b c (Suc n))) s \<and> bval b s)\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+  have h2: "\<turnstile>\<^sub>b \<langle>\<lambda>s. (wp_big_step c (OK (While_Step_Pre_ER Q b c (Suc n))) s \<and> bval b s)\<rangle> c  \<langle>OK (While_Step_Pre_ER Q b c (Suc n))\<rangle>"
     by (metis (no_types, lifting) assms strengthen_pre_ok)
-  have h3: "\<turnstile>\<^sub>b \<langle>(QQ_er Q b c (Suc (Suc n)))\<rangle> c  \<langle>OK (QQ_er Q b c (Suc n))\<rangle>"
+  have h3: "\<turnstile>\<^sub>b \<langle>(While_Step_Pre_ER Q b c (Suc (Suc n)))\<rangle> c  \<langle>OK (While_Step_Pre_ER Q b c (Suc n))\<rangle>"
     using h2 by auto
-  have h4: "\<And>n::nat. \<turnstile>\<^sub>b \<langle>(QQ_er Q b c) (Suc (Suc n))\<rangle> c  \<langle>OK ((QQ_er Q b c) (Suc n))\<rangle>"
-    by (metis QQ_er.simps(2) QQ_er_1.simps(2) assms strengthen_pre_ok)
-  have h5: "\<turnstile>\<^sub>b \<langle>QQ_er Q b c 1\<rangle> c  \<langle>ER (QQ_er Q b c 0)\<rangle>"
-    by (metis One_nat_def QQ_er.simps(1,2) QQ_er_1.simps(1) assms strengthen_pre_er)
-  have h6: "\<And>n s. (QQ_er Q b c) (Suc n) s \<Longrightarrow> bval b s"
-    by (metis QQ_er.simps(2) QQ_er_1.simps(1,2) old.nat.exhaust)
-  have h7: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (QQ_er Q b c) (Suc n)  s\<rangle> WHILE b DO c \<langle>ER (\<lambda>s. (QQ_er Q b c) 0 s)\<rangle>"
+  have h4: "\<And>n::nat. \<turnstile>\<^sub>b \<langle>(While_Step_Pre_ER Q b c) (Suc (Suc n))\<rangle> c  \<langle>OK ((While_Step_Pre_ER Q b c) (Suc n))\<rangle>"
+    by (metis While_Step_Pre_ER.simps(2) While_Step_Pre_ER_Helper.simps(2) assms strengthen_pre_ok)
+  have h5: "\<turnstile>\<^sub>b \<langle>While_Step_Pre_ER Q b c 1\<rangle> c  \<langle>ER (While_Step_Pre_ER Q b c 0)\<rangle>"
+    by (metis One_nat_def While_Step_Pre_ER.simps(1,2) While_Step_Pre_ER_Helper.simps(1) assms strengthen_pre_er)
+  have h6: "\<And>n s. (While_Step_Pre_ER Q b c) (Suc n) s \<Longrightarrow> bval b s"
+    by (metis While_Step_Pre_ER.simps(2) While_Step_Pre_ER_Helper.simps(1,2) old.nat.exhaust)
+  have h7: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (While_Step_Pre_ER Q b c) (Suc n)  s\<rangle> WHILE b DO c \<langle>ER (\<lambda>s. (While_Step_Pre_ER Q b c) 0 s)\<rangle>"
     using h4 h5 h6 tWhileER by blast
-  have h8: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (QQ_er Q b c) (Suc n)  s\<rangle> WHILE b DO c \<langle>ER Q\<rangle>"
+  have h8: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>n. (While_Step_Pre_ER Q b c) (Suc n)  s\<rangle> WHILE b DO c \<langle>ER Q\<rangle>"
     using h7 by auto
   have h9: "\<turnstile>\<^sub>b \<langle>\<lambda>s. \<exists>t. (WHILE b DO c, s) \<Down> (t,False) \<and> Q t\<rangle> WHILE b DO c \<langle>ER Q\<rangle>"
     by (smt (verit, ccfv_threshold) While_Strengthen_ER apply_post.simps(2) h8 strengthen_pre)
@@ -297,6 +298,8 @@ proof-
     by (smt (verit, ccfv_SIG) conseqER h9)
 qed
 
+text\<open>The proof of Big Step Weakest Precondition being a valid precondition.
+Requires the command sequence to be sequential, meaning no parallel executions\<close>
 
 lemma wp_big_step_is_pre: "isSequential c \<Longrightarrow> \<turnstile>\<^sub>b \<langle>wp_big_step c Q\<rangle> c \<langle>Q\<rangle>"
   proof(induction c arbitrary: Q)
@@ -343,7 +346,9 @@ lemma wp_big_step_is_pre: "isSequential c \<Longrightarrow> \<turnstile>\<^sub>b
     case (Par c1 c2)
     then show ?case
       by simp
-qed
+  qed
+
+text\<open>Proof of completeness, given the weakest precondition is a precondition\<close>
 
 lemma valid_imp_wp_big_step: 
   assumes "isSequential c"

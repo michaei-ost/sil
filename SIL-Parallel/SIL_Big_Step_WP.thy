@@ -5,6 +5,8 @@ begin
 
 subsubsection "Weakest Precondition"
 
+text\<open>The weakest precondition definition for SIL Big-Step semantics\<close>
+
 definition wp_big_step :: "com \<Rightarrow> post \<Rightarrow> assn" where
   "wp_big_step c Q = (\<lambda>s. \<exists>t. (c,s) \<Down> t \<and> apply_post Q t)"
 
@@ -76,6 +78,9 @@ lemma wp_big_step_Seq_ER[simp]:
 lemma wp_big_step_If[simp]:
  "wp_big_step (IF b THEN c\<^sub>1 ELSE c\<^sub>2) Q = (\<lambda>s. if bval b s then wp_big_step c\<^sub>1 Q s else wp_big_step c\<^sub>2 Q s)"
   by (rule ext) (auto simp: wp_big_step_def)
+
+text\<open>In this case, since there is no invariant-based rule for the Weakest Precondition of
+While loops, it must be defined recursively\<close>
 
 lemma wp_big_step_While_If:
  "wp_big_step (WHILE b DO c) Q s = wp_big_step (IF b THEN c;;WHILE b DO c ELSE SKIP) Q s"

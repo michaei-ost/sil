@@ -14,11 +14,6 @@ where
       OK Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>s'. (c1,sOK s) \<rightarrow> (c2,sOK s') \<and> Q s'))
     | ER Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>s'. (c1,sOK s) \<rightarrow> (c2,sER s') \<and> Q s')))"
 
-
-abbreviation state_subst :: "state \<Rightarrow> aexp \<Rightarrow> vname \<Rightarrow> state"
-  (\<open>_[_'/_]\<close> [1000,0,0] 999)
-where "s[a/x] == s(x := aval a s)"
-
 inductive
   SIL_Single_Step :: "assn \<Rightarrow> com \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<turnstile> (\<langle>(1_)\<rangle>/ (_)/ \<leadsto> (_)/ \<langle>(1_)\<rangle>)\<close> 50)
 where

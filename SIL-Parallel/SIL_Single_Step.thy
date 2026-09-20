@@ -1,8 +1,8 @@
-(* Author: Tobias Nipkow *)
+section "SIL Single Step Logic"
 
-section "SIL Logic"
-
-subsection "SIL Logic for Partial Correctness"
+text\<open>This defines a set of SIL rules for a Single step being taken,
+as per the small step semantics. This implements both OK and Error
+States\<close>
 
 theory SIL_Single_Step imports Small_Step begin
 
@@ -13,11 +13,6 @@ where
       (case R of
       OK Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>s'. (c1,sOK s) \<rightarrow> (c2,sOK s') \<and> Q s'))
     | ER Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>s'. (c1,sOK s) \<rightarrow> (c2,sER s') \<and> Q s')))"
-
-
-abbreviation state_subst :: "state \<Rightarrow> aexp \<Rightarrow> vname \<Rightarrow> state"
-  (\<open>_[_'/_]\<close> [1000,0,0] 999)
-where "s[a/x] == s(x := aval a s)"
 
 inductive
   SIL_Single_Step :: "assn \<Rightarrow> com \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<turnstile> (\<langle>(1_)\<rangle>/ (_)/ \<leadsto> (_)/ \<langle>(1_)\<rangle>)\<close> 50)
@@ -70,6 +65,8 @@ sParallelSkipL: "\<turnstile> \<langle>P\<rangle> SKIP||c\<^sub>2 \<leadsto> c\<
 
 sParallelSkipR: "\<turnstile> \<langle>P\<rangle> c\<^sub>1||SKIP \<leadsto> c\<^sub>1 \<langle>OK P\<rangle>"
 
+text\<open>Helper lemmas for strengthening Pre and Weakening Post\<close>
+
 lemma strengthen_pre:
   "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>R\<rangle> \<rbrakk> \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<leadsto> c' \<langle>R\<rangle>"
   by (smt (verit, ccfv_SIG) post_assn.elims sConseqER sConseqOK)
@@ -82,10 +79,7 @@ lemma weaken_post_er:
   "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>ER Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>ER Q'\<rangle>"
   using sConseqER by blast
 
-text\<open>The assignment and While rule are awkward to use in actual proofs
-because their pre and postcondition are of a very special form and the actual
-goal would have to match this form exactly. Therefore we derive two variants
-with arbitrary pre and postconditions.\<close>
+text\<open>Helper lemma for Assign\<close>
 
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile> \<langle>P\<rangle> x ::= a \<leadsto> SKIP \<langle>OK Q\<rangle>"
   by (simp add: sAssign strengthen_pre)

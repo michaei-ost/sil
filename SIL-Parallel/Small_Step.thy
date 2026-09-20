@@ -2,7 +2,10 @@ section "Small-Step Semantics of Commands"
 
 theory Small_Step imports Star Big_Step begin
 
-subsection "The transition relation"
+text\<open>Uses OK and Error States within the semantics, to represent abort states and successful
+execution states. Small step semantics represent a single small step taken in the program.
+It goes from an initial command and state pair, to another command and state pair after exactly one
+step.\<close>
 
 datatype sPost = sOK state | sER state
 
@@ -46,23 +49,15 @@ subsection\<open>Executability\<close>
 
 code_pred small_step .
 
-subsection\<open>Proof infrastructure\<close>
-
 subsubsection\<open>Induction rules\<close>
 
-text\<open>The default induction rule @{thm[source] small_step.induct} only works
-for lemmas of the form \<open>a \<rightarrow> b \<Longrightarrow> \<dots>\<close> where \<open>a\<close> and \<open>b\<close> are
-not already pairs \<open>(DUMMY,DUMMY)\<close>. We can generate a suitable variant
-of @{thm[source] small_step.induct} for pairs by ``splitting'' the arguments
-\<open>\<rightarrow>\<close> into pairs:\<close>
 lemmas small_step_induct = small_step.induct[split_format(complete)]
-
 
 subsubsection\<open>Proof automation\<close>
 
 declare small_step.intros[simp,intro]
 
-text\<open>Rule inversion:\<close>
+text\<open>Rule inversion, added cases for Parallel execution\<close>
 
 inductive_cases SkipE[elim!]: "(SKIP,s) \<rightarrow> ct"
 thm SkipE
@@ -80,6 +75,8 @@ inductive_cases SelectNDE[elim]: "(SELECT S, s) \<rightarrow> ct"
 thm SelectNDE
 inductive_cases IfE[elim!]: "(IF b THEN c1 ELSE c2,s) \<rightarrow> ct"
 inductive_cases WhileE[elim]: "(WHILE b DO c, s) \<rightarrow> ct"
+
+text\<open>One Step Error Execution\<close>
 
 lemma ErE:
   assumes "(c, sER s) \<rightarrow> cs'"
@@ -354,6 +351,7 @@ by (metis While isSequential.simps(4) seq_comp_sER small_step.IfTrue star.simps)
 
 text \<open>
   Finally, the equivalence theorem:
+  Assumes all code is sequential, as it is required by big step semantics.
 \<close>
 
 theorem big_iff_small:
@@ -395,16 +393,5 @@ lemma finalD: "final (c,s) \<Longrightarrow> c = SKIP"
 lemma final_iff_SKIP: "final (c,s) = (c = SKIP)"
 by (metis SkipE finalD final_def)
 
-text\<open>Now we can show that \<open>\<Rightarrow>\<close> yields a final state iff \<open>\<rightarrow>\<close>
-terminates:\<close>
-(*
-lemma big_iff_small_termination:
-  "(\<exists>t. cs \<Rightarrow> t) \<longleftrightarrow> (\<exists>cs'. cs \<rightarrow>* cs' \<and> final cs')"
-by(simp add: big_iff_small final_iff_SKIP)
-*)
-text\<open>This is the same as saying that the absence of a big step result is
-equivalent with absence of a terminating small step sequence, i.e.\ with
-nontermination.  Since \<open>\<rightarrow>\<close> is determininistic, there is no difference
-between may and must terminate.\<close>
 
 end

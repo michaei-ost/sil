@@ -1,4 +1,4 @@
-section "IMP --- A Simple Imperative Language"
+section "SIL Commands for a simple Imperitive Language"
 
 theory Com_SIL imports BExp begin
 
@@ -38,5 +38,8 @@ fun apply_post :: "post \<Rightarrow> state \<times> bool \<Rightarrow> bool" wh
   "apply_post (OK Q) (s,b) = (Q s \<and> b)" 
 | "apply_post (ER Q) (s,b) = (Q s \<and> \<not>b)" 
 
+abbreviation state_subst :: "state \<Rightarrow> aexp \<Rightarrow> vname \<Rightarrow> state"
+  (\<open>_[_'/_]\<close> [1000,0,0] 999)
+  where "s[a/x] == s(x := aval a s)"
 
 end

@@ -7,9 +7,9 @@ subsection "SIL Logic for Partial Correctness"
 theory SIL_Big_Step imports Big_Step begin
 
 definition SIL_valid ::
-  "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile> (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
+  "assn \<Rightarrow> com \<Rightarrow> post \<Rightarrow> bool" (\<open>\<Turnstile>\<^sub>b (\<langle>(1_)\<rangle>/ (_)/  \<langle>(1_)\<rangle>)\<close> 50)
 where
-"\<Turnstile> \<langle>P\<rangle> c \<langle>R\<rangle> \<equiv>
+"\<Turnstile>\<^sub>b \<langle>P\<rangle> c \<langle>R\<rangle> \<equiv>
   (case R of
       OK Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c,s) \<Down> (t,True) \<and> Q t))
     | ER Q \<Rightarrow> (\<forall>s. P s \<longrightarrow> (\<exists>t. (c,s) \<Down> (t,False) \<and> Q t)))"
@@ -27,9 +27,9 @@ tAbort: "\<turnstile>\<^sub>b \<langle>P\<rangle> ABORT \<langle>ER P\<rangle>" 
 
 tAssign:  "\<turnstile>\<^sub>b \<langle>\<lambda>s. P(s[a/x])\<rangle> x::=a \<langle>OK P\<rangle>"  |
 
-tAssignNDOK:  "\<turnstile>\<^sub>b \<langle>\<lambda>s. (\<exists>v \<in> vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<langle>OK P\<rangle>"  |
+tAssignNDOK:  "\<turnstile>\<^sub>b \<langle>\<lambda>s. (\<exists>v \<in> set vals. P(s(x := aval v s)))\<rangle> x::= ND vals \<langle>OK P\<rangle>"  |
 
-tAssignNDER:  "\<turnstile>\<^sub>b \<langle>P\<rangle> x ::= ND {} \<langle>ER P\<rangle>"  |
+tAssignNDER:  "\<turnstile>\<^sub>b \<langle>P\<rangle> x ::= ND [] \<langle>ER P\<rangle>"  |
 
 tSeqOK: "\<lbrakk> \<turnstile>\<^sub>b \<langle>P\<rangle> c\<^sub>1 \<langle>OK Q\<rangle>;  \<turnstile>\<^sub>b \<langle>Q\<rangle> c\<^sub>2 \<langle>R\<rangle> \<rbrakk>
       \<Longrightarrow> \<turnstile>\<^sub>b \<langle>P\<rangle> c\<^sub>1;;c\<^sub>2 \<langle>R\<rangle>"  |
