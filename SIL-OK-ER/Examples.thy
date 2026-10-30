@@ -2,12 +2,6 @@ theory Examples
   imports SIL_Sound_Complete
 begin
 
-text \<open>
-  This theory contains a collection of simple example programs
-  together with proofs of their correctness using the Hoare logic
-  developed in the preceding chapters.
-\<close>
-
 subsection \<open>Skip\<close>
 
 lemma wp_normalise_example:
@@ -18,6 +12,19 @@ lemma wp_normalise_example:
       WHILE Less (V ''x'') (N 5)
       DO ''x'' ::= Plus (V ''x'') (N 1)) (OK (\<lambda>s. s ''x'' = 5)) = (\<lambda>s. True)"
   by force
+
+lemma select_example
+  "\<turnstile> \<langle>\<lambda>s. s ''x'' \<le> 3\<rangle>
+      SELECT [(Less (N 3) (V ''x''), SKIP)]
+    \<langle>ER (\<lambda>s. True)\<rangle>"
+proof-
+  have "\<turnstile> \<langle>\<lambda>s. s ''x'' \<le> 3\<rangle>
+      SELECT [(Less (N 3) (V ''x''), SKIP)]
+    \<langle>ER (\<lambda>s. s ''x'' \<le> 3)\<rangle>" using tSelectNDNP by auto
+  then show "\<turnstile> \<langle>\<lambda>s. s ''x'' \<le> 3\<rangle>
+      SELECT [(Less (N 3) (V ''x''), SKIP)]
+    \<langle>ER (\<lambda>s. True)\<rangle>" using conseqER
+    by (metis (lifting))
 
 lemma normalise_example:
   "\<turnstile> \<langle>\<lambda>s. True\<rangle>

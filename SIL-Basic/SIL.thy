@@ -50,7 +50,12 @@ tWhile: "
   \<turnstile> \<langle>\<lambda>s. \<exists>n. Q n s\<rangle>  WHILE b DO c \<langle>\<lambda>s. Q 0 s\<rangle>" |
 
 conseq: "\<lbrakk> \<forall>s. P' s \<longrightarrow> P s;  \<turnstile> \<langle>P\<rangle> c \<langle>Q\<rangle>;  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk>
-        \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q'\<rangle>"
+        \<Longrightarrow> \<turnstile> \<langle>P'\<rangle> c \<langle>Q'\<rangle>" |
+
+disjunction:  "\<lbrakk> \<turnstile> \<langle>P\<^sub>1\<rangle> c \<langle>Q\<^sub>1\<rangle>; \<turnstile> \<langle>P\<^sub>2\<rangle> c \<langle>Q\<^sub>2\<rangle> \<rbrakk> 
+        \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P\<^sub>1 s \<or> P\<^sub>2 s)\<rangle> c \<langle>\<lambda>s. (Q\<^sub>1 s \<or> Q\<^sub>2 s)\<rangle>" |
+
+empty: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<langle>P\<rangle>"  
 
 
 lemmas [simp] = SIL.tSkip SIL.tAssign SIL.tSeq tIf
@@ -71,6 +76,19 @@ goal would have to match this form exactly. Therefore we derive two variants
 with arbitrary pre and postconditions.\<close>
 
 lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile> \<langle>P\<rangle> x ::= a \<langle>Q\<rangle>"
-by (simp add: strengthen_pre[OF _ tAssign])
+  by (simp add: strengthen_pre[OF _ tAssign])
 
+lemma Example_1: "\<turnstile> \<langle>\<lambda>s. True\<rangle> ''n'' ::= ND {N 0, N 1} ;; ''x'' ::= V ''n'' \<langle>\<lambda>s. s ''x'' = 0\<rangle>"
+proof-
+
+ have h0': "\<lambda>s. (\<lambda>t. t ''n'' = 0) (s[(N 0)/''n'']) \<equiv> \<lambda>s. True"
+    by simp
+  have h0: "\<turnstile> \<langle>\<lambda>s. True\<rangle> ''n'' ::= ND {N 0, N 1} \<langle>\<lambda>s. s ''n'' = 0\<rangle>" 
+    using tAssignND conseq h0' by (smt (verit, ccfv_SIG) insertCI)
+  have h1: "\<turnstile> \<langle>\<lambda>s. s ''n'' = 0\<rangle> ''x'' ::= V ''n'' \<langle>\<lambda>s. s ''x'' = 0\<rangle>" 
+    using tAssign by (simp add: Assign')
+  have h2: "\<turnstile> \<langle>\<lambda>s. True\<rangle> ''n'' ::= ND {N 0, N 1} ;; ''x'' ::= V ''n'' \<langle>\<lambda>s. s ''x'' = 0\<rangle>"
+    using tSeq h0 h1 by blast
+  then show ?thesis by blast
+lemma 
 end

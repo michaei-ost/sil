@@ -52,8 +52,8 @@ sSubstituteCom: "\<lbrakk>\<turnstile> \<langle>P\<rangle> c \<leadsto> c\<^sub>
 
 sFalsePre: "\<turnstile> \<langle>\<lambda>s. False\<rangle> c \<leadsto> c' \<langle>Q\<rangle>" |
 
-sDisjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<leadsto> c' \<langle>Q\<rangle> \<rbrakk> 
-        \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<leadsto> c' \<langle>Q\<rangle>" |
+sDisjunction:  "\<lbrakk> \<turnstile> \<langle>P\<rangle> c \<leadsto> c' \<langle>Q\<rangle>; \<turnstile> \<langle>R\<rangle> c \<leadsto> c' \<langle>S\<rangle> \<rbrakk> 
+        \<Longrightarrow> \<turnstile> \<langle>\<lambda>s. (P s \<or> R s)\<rangle> c \<leadsto> c' \<langle>\<lambda>s. (Q s \<or> S s)\<rangle>" |
 
 sParallelL: "\<lbrakk> \<turnstile> \<langle>P\<rangle> c\<^sub>1 \<leadsto> c\<^sub>1'  \<langle>R\<rangle>; c\<^sub>2 \<noteq> SKIP \<rbrakk>
         \<Longrightarrow> \<turnstile> \<langle>P\<rangle> c\<^sub>1||c\<^sub>2 \<leadsto> c\<^sub>1'||c\<^sub>2 \<langle>R\<rangle>" |

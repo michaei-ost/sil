@@ -129,6 +129,13 @@ lemma wp_AssignND_Empty_OK [simp]:
   unfolding wp_def
   by auto
 
+lemma wp_AssignND [simp]:
+  "wp (x::= ND vals) (OK Q) = (\<lambda>s.
+    if vals \<noteq> {} then (\<exists>v \<in> vals. Q (s(x := aval v s))) else False)"
+  unfolding wp_def
+by force
+
+
 lemma wp_SelectND_OK[simp]: 
   "wp (SelectND S) (OK Q) = (\<lambda>s. \<exists>(b,c) \<in> set S. (bval b s) \<and> (wp c (OK Q) s))"
   by (fastforce simp: wp_def)
@@ -531,7 +538,17 @@ by (metis wp_is_pre)
 
 corollary sil_sound_complete: 
   "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<longleftrightarrow> \<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle>"
-   by(fastforce simp: sil_sound sil_complete)
+  by(fastforce simp: sil_sound sil_complete)
+
+lemma wp_is_valid:
+  shows "\<Turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<Longrightarrow> \<forall>s. P s \<longrightarrow> wp c Q s"
+  and "\<Turnstile> \<langle>wp c Q\<rangle>c\<langle>Q\<rangle>"
+  and "\<turnstile> \<langle>P\<rangle>c\<langle>Q\<rangle> \<Longrightarrow> \<forall>s. P s \<longrightarrow> wp c Q s"
+  and "\<turnstile> \<langle>wp c Q\<rangle>c\<langle>Q\<rangle>"
+     apply (metis valid_imp_wp)
+    apply (metis sil_sound_complete wp_is_pre)
+   apply (metis valid_imp_wp sil_sound_complete)
+  by (metis wp_is_pre)
 
 end
 (*
